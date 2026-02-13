@@ -1,0 +1,157 @@
+# Getting Started with docxreview
+
+## The Problem
+
+A common workflow in reproducible reporting looks like this:
+
+1.  Write your report in Quarto (`.qmd`) or R Markdown (`.Rmd`).
+2.  Render to `.docx` for review.
+3.  A reviewer opens the Word document, adds **comments** and **tracked
+    changes**.
+4.  You receive the reviewed `.docx` and manually work through each
+    comment and change to update your source document.
+
+Step 4 is tedious, error-prone, and doesn’t scale well when multiple
+reviewers are involved. **docxreview** automates the extraction of
+reviewer feedback so you can focus on revising your source.
+
+## Step 1: Render Your Document
+
+Render your Quarto or R Markdown source to Word:
+
+``` bash
+quarto render report.qmd --to docx
+```
+
+## Step 2: Review in Word
+
+Send the `.docx` to your reviewer. They add comments and tracked changes
+(insertions and deletions) using Word’s built-in review tools. No
+special setup is required on their end.
+
+## Step 3: Extract Feedback
+
+Once you receive the reviewed document, use
+[`extract_review()`](https://schmidtpaul.github.io/docxreview/reference/extract_review.md)
+to get a structured Markdown summary:
+
+``` r
+library(docxreview)
+
+extract_review("report_reviewed.docx")
+```
+
+This prints a Markdown-formatted summary to the console:
+
+    # Review Feedback: report_reviewed.docx
+
+    ## Comments (1)
+
+    ### 1. Max Mustermann (2024-01-15)
+    > **Marked text:** "the primary endpoint was overall survival"
+    > **Paragraph:** "In this study, the primary endpoint was overall survival."
+
+    **Comment:** Should we also mention secondary endpoints here?
+
+    ---
+
+    ## Tracked Changes (2)
+
+    ### 1. [Deletion] Max Mustermann (2024-01-15)
+    > **Deleted:** "approximately"
+    > **Paragraph:** "The sample size was ~~approximately~~ 200 patients."
+
+    ---
+
+    ### 2. [Insertion] Max Mustermann (2024-01-15)
+    > **Inserted:** "statistically significant"
+    > **Paragraph:** "The difference was **statistically significant** (p < 0.05)."
+
+    ---
+
+To save the output to a file:
+
+``` r
+extract_review("report_reviewed.docx", output = "feedback.md")
+```
+
+## Programmatic Access
+
+For filtering or further processing, use the individual extraction
+functions that return tibbles:
+
+``` r
+# Extract comments as a tibble
+comments <- extract_comments("report_reviewed.docx")
+comments
+```
+
+    # A tibble: 1 x 6
+      comment_id author          date       comment_text   commented_text  paragraph_context
+      <chr>      <chr>           <chr>      <chr>          <chr>           <chr>
+    1 1          Max Mustermann  2024-01-15 Should we ...  the primary ... In this study, ...
+
+``` r
+# Extract tracked changes as a tibble
+changes <- extract_tracked_changes("report_reviewed.docx")
+changes
+```
+
+    # A tibble: 2 x 6
+      change_id type      author          date       changed_text            paragraph_context
+          <int> <chr>     <chr>           <chr>      <chr>                   <chr>
+    1         1 deletion  Max Mustermann  2024-01-15 approximately           The sample size ...
+    2         2 insertion Max Mustermann  2024-01-15 statistically signifi~
+
+You can filter and manipulate these tibbles with standard dplyr
+operations:
+
+``` r
+# Filter changes by a specific reviewer
+dplyr::filter(changes, author == "Max Mustermann")
+
+# Show only deletions
+dplyr::filter(changes, type == "deletion")
+```
+
+## Writing to File
+
+Save the Markdown output directly to a file for archiving or further
+processing:
+
+``` r
+extract_review("report_reviewed.docx", output = "feedback.md")
+```
+
+## Claude Code Integration
+
+docxreview is designed to work seamlessly with [Claude
+Code](https://docs.anthropic.com/en/docs/claude-code) and the
+[btw](https://github.com/posit-dev/btw) MCP server. This enables a fully
+assisted review workflow:
+
+1.  **btw** provides Claude Code with access to your R session.
+2.  **docxreview** extracts the review feedback.
+3.  Claude Code reads the feedback and helps you revise your `.qmd`
+    source.
+
+### Setup
+
+Make the docxreview skill available to Claude Code by adding the skill
+directory to your project. Find the path with:
+
+``` r
+system.file("skills", "docxreview", package = "docxreview")
+```
+
+### Workflow
+
+With btw running as an MCP server, you can ask Claude Code:
+
+> “Extract the review feedback from `report_reviewed.docx` and help me
+> revise `report.qmd` accordingly.”
+
+Claude Code will use
+[`extract_review()`](https://schmidtpaul.github.io/docxreview/reference/extract_review.md)
+to read the feedback, understand the comments and tracked changes in
+context, and suggest concrete edits to your Quarto source.
