@@ -28,55 +28,50 @@ extract_tracked_changes <- function(docx_path) {
 
   ns <- c(w = ns_w)
 
-  ins_nodes <- xml2::xml_find_all(body_xml, "//w:ins", ns = ns)
-  del_nodes <- xml2::xml_find_all(body_xml, "//w:del", ns = ns)
+  # Combined XPath preserves document order (separate queries + rbind would not)
+  change_nodes <- xml2::xml_find_all(body_xml, "//w:ins | //w:del", ns = ns)
 
-  if (length(ins_nodes) == 0 && length(del_nodes) == 0) {
+  if (length(change_nodes) == 0) {
     cli::cli_inform("No tracked changes found in {.file {docx_path}}.")
     return(empty_changes_tibble())
   }
 
-  ins_data <- extract_change_nodes(ins_nodes, type = "insertion", ns = ns)
-  del_data <- extract_change_nodes(del_nodes, type = "deletion", ns = ns)
-
-  result <- rbind(ins_data, del_data)
-
-  # Sort by document order approximation (original node position)
-  # and assign sequential IDs
+  result <- extract_change_nodes(change_nodes, ns = ns)
   result$change_id <- seq_len(nrow(result))
   result[, c("change_id", "type", "author", "date",
              "changed_text", "paragraph_context")]
 }
 
 #' Extract data from a set of change nodes (w:ins or w:del)
-#' @param nodes xml_nodeset of w:ins or w:del elements.
-#' @param type "insertion" or "deletion".
+#' @param nodes xml_nodeset of w:ins and/or w:del elements.
 #' @param ns Named character vector of XML namespaces.
 #' @return A tibble with change data.
 #' @noRd
-extract_change_nodes <- function(nodes, type, ns) {
+extract_change_nodes <- function(nodes, ns) {
   if (length(nodes) == 0) return(empty_changes_tibble())
 
+  # Determine type from node name (preserves document order from combined XPath)
+  types <- ifelse(xml2::xml_name(nodes) == "ins", "insertion", "deletion")
   # Text xpath differs: w:ins contains w:r/w:t, w:del contains w:r/w:delText
-  text_xpath <- if (type == "insertion") ".//w:t" else ".//w:delText"
+  text_xpaths <- ifelse(types == "insertion", ".//w:t", ".//w:delText")
 
   # Attributes are not namespace-prefixed in OOXML (just "author", not "w:author")
   authors <- xml2::xml_attr(nodes, "author")
   dates <- xml2::xml_attr(nodes, "date")
 
-  changed_texts <- vapply(nodes, function(node) {
-    text_nodes <- xml2::xml_find_all(node, text_xpath, ns = ns)
+  changed_texts <- vapply(seq_along(nodes), function(i) {
+    text_nodes <- xml2::xml_find_all(nodes[[i]], text_xpaths[i], ns = ns)
     paste(xml2::xml_text(text_nodes), collapse = "")
   }, character(1))
 
   paragraph_contexts <- vapply(seq_along(nodes), function(i) {
     ctx <- get_paragraph_context(nodes[[i]])
-    format_context_with_markup(ctx, changed_texts[i], type)
+    format_context_with_markup(ctx, changed_texts[i], types[i])
   }, character(1))
 
   tibble::tibble(
     change_id = NA_integer_,
-    type = type,
+    type = types,
     author = authors,
     date = dates,
     changed_text = changed_texts,

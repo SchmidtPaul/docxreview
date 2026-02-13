@@ -1,0 +1,21 @@
+url: https://schmidtpaul.github.io/docxreview/
+
+template:
+  bootstrap: 5
+  bootswatch: cosmo
+
+navbar:
+  structure:
+    left: [intro, articles, reference]
+    right: [github]
+  components:
+    github:
+      icon: fab fa-github fa-lg
+      href: https://github.com/SchmidtPaul/docxreview/
+
+reference:
+- title: Review Extraction
+  contents:
+  - extract_review
+  - extract_comments
+  - extract_tracked_changes
