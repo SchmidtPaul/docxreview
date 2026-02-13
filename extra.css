@@ -4,23 +4,30 @@
   background: #00923f;
 }
 
-/* unvisited link */
-a:link {
-  color: #00923F;
+/* Navbar: BioMath green background, white text */
+.navbar {
+  background-color: #00923f !important;
+}
+.navbar .nav-link,
+.navbar .navbar-brand {
+  color: #fff !important;
+}
+.navbar .nav-link:hover,
+.navbar .nav-link:focus {
+  color: rgba(255, 255, 255, 0.8) !important;
 }
 
-/* visited link */
-a:visited {
+/* Content links (exclude navbar) */
+a:link:not(.nav-link):not(.navbar-brand) {
   color: #00923F;
 }
-
-/* mouse over link */
-a:hover {
+a:visited:not(.nav-link):not(.navbar-brand) {
+  color: #00923F;
+}
+a:hover:not(.nav-link):not(.navbar-brand) {
   color: #69626d;
 }
-
-/* selected link */
-a:active {
+a:active:not(.nav-link):not(.navbar-brand) {
   color: #00923F;
 }
 

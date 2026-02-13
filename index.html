@@ -79,10 +79,10 @@
 </h2>
 <p>The typical use case is a Quarto/R Markdown review cycle:</p>
 <pre class="mermaid"><code>flowchart LR
-    A["`.qmd`\nSource"] --&gt;|"quarto render"| B["`.docx`\nReport"]
-    B --&gt;|"send to reviewer"| C["Reviewer\nedits in Word"]
-    C --&gt;|"reviewed .docx"| D["{docxreview}\nextracts feedback"]
-    D --&gt;|"structured\nMarkdown"| E["Author\nrevises source"]</code></pre>
+    A[".qmd Source"] --&gt;|"quarto render"| B[".docx Report"]
+    B --&gt;|"send to reviewer"| C["Reviewer edits in Word"]
+    C --&gt;|"reviewed .docx"| D["docxreview extracts feedback"]
+    D --&gt;|"structured Markdown"| E["Author revises source"]</code></pre>
 <ol style="list-style-type: decimal">
 <li>
 <strong>Render</strong> your Quarto or R Markdown document to <code>.docx</code>.</li>
