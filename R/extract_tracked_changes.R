@@ -1,0 +1,98 @@
+#' Extract tracked changes from a Word document
+#'
+#' Reads a .docx file and extracts all tracked changes (insertions and
+#' deletions) including the changed text, author, date, and the full
+#' paragraph context.
+#'
+#' @param docx_path Path to a .docx file.
+#' @return A [tibble::tibble] with columns:
+#'   - `change_id`: Integer. Sequential ID for each change.
+#'   - `type`: Character. Either `"insertion"` or `"deletion"`.
+#'   - `author`: Character. Name of the person who made the change.
+#'   - `date`: Character. ISO 8601 timestamp of the change.
+#'   - `changed_text`: Character. The text that was inserted or deleted.
+#'   - `paragraph_context`: Character. Full text of the containing paragraph,
+#'     with the change marked up (~~deletion~~ or **insertion**).
+#' @export
+#' @examples
+#' # Extract tracked changes from a reviewed document
+#' \dontrun{
+#' changes <- extract_tracked_changes("report_reviewed.docx")
+#' changes
+#' }
+extract_tracked_changes <- function(docx_path) {
+  check_docx_path(docx_path)
+
+  doc <- officer::read_docx(docx_path)
+  body_xml <- officer::docx_body_xml(doc)
+
+  ns <- c(w = ns_w)
+
+  ins_nodes <- xml2::xml_find_all(body_xml, "//w:ins", ns = ns)
+  del_nodes <- xml2::xml_find_all(body_xml, "//w:del", ns = ns)
+
+  if (length(ins_nodes) == 0 && length(del_nodes) == 0) {
+    cli::cli_inform("No tracked changes found in {.file {docx_path}}.")
+    return(empty_changes_tibble())
+  }
+
+  ins_data <- extract_change_nodes(ins_nodes, type = "insertion", ns = ns)
+  del_data <- extract_change_nodes(del_nodes, type = "deletion", ns = ns)
+
+  result <- rbind(ins_data, del_data)
+
+  # Sort by document order approximation (original node position)
+  # and assign sequential IDs
+  result$change_id <- seq_len(nrow(result))
+  result[, c("change_id", "type", "author", "date",
+             "changed_text", "paragraph_context")]
+}
+
+#' Extract data from a set of change nodes (w:ins or w:del)
+#' @param nodes xml_nodeset of w:ins or w:del elements.
+#' @param type "insertion" or "deletion".
+#' @param ns Named character vector of XML namespaces.
+#' @return A tibble with change data.
+#' @noRd
+extract_change_nodes <- function(nodes, type, ns) {
+  if (length(nodes) == 0) return(empty_changes_tibble())
+
+  # Text xpath differs: w:ins contains w:r/w:t, w:del contains w:r/w:delText
+  text_xpath <- if (type == "insertion") ".//w:t" else ".//w:delText"
+
+  # Attributes are not namespace-prefixed in OOXML (just "author", not "w:author")
+  authors <- xml2::xml_attr(nodes, "author")
+  dates <- xml2::xml_attr(nodes, "date")
+
+  changed_texts <- vapply(nodes, function(node) {
+    text_nodes <- xml2::xml_find_all(node, text_xpath, ns = ns)
+    paste(xml2::xml_text(text_nodes), collapse = "")
+  }, character(1))
+
+  paragraph_contexts <- vapply(seq_along(nodes), function(i) {
+    ctx <- get_paragraph_context(nodes[[i]])
+    format_context_with_markup(ctx, changed_texts[i], type)
+  }, character(1))
+
+  tibble::tibble(
+    change_id = NA_integer_,
+    type = type,
+    author = authors,
+    date = dates,
+    changed_text = changed_texts,
+    paragraph_context = paragraph_contexts
+  )
+}
+
+#' Empty tibble with the tracked changes schema
+#' @noRd
+empty_changes_tibble <- function() {
+  tibble::tibble(
+    change_id = integer(),
+    type = character(),
+    author = character(),
+    date = character(),
+    changed_text = character(),
+    paragraph_context = character()
+  )
+}
