@@ -3,6 +3,8 @@ url: https://schmidtpaul.github.io/docxreview/
 template:
   bootstrap: 5
   bootswatch: cosmo
+  bslib:
+    primary: "#00923f"
 
 navbar:
   structure:

@@ -43,10 +43,10 @@ The typical use case is a Quarto/R Markdown review cycle:
 
 ```mermaid
 flowchart LR
-    A["`.qmd`\nSource"] -->|"quarto render"| B["`.docx`\nReport"]
-    B -->|"send to reviewer"| C["Reviewer\nedits in Word"]
-    C -->|"reviewed .docx"| D["{docxreview}\nextracts feedback"]
-    D -->|"structured\nMarkdown"| E["Author\nrevises source"]
+    A[".qmd Source"] -->|"quarto render"| B[".docx Report"]
+    B -->|"send to reviewer"| C["Reviewer edits in Word"]
+    C -->|"reviewed .docx"| D["docxreview extracts feedback"]
+    D -->|"structured Markdown"| E["Author revises source"]
 ```
 
 1. **Render** your Quarto or R Markdown document to `.docx`.
