@@ -5,10 +5,10 @@
 #' processing reviewer feedback.
 #'
 #' @param docx_path Path to a .docx file.
-#' @param output Optional file path to write the Markdown output to. If `NULL`
-#'   (default), the Markdown string is returned invisibly and printed to the
-#'   console.
-#' @return Invisibly returns the Markdown string. If `output` is specified,
+#' @param output_file Optional file path to write the Markdown output to. If
+#'   `NULL` (default), the Markdown string is returned invisibly and printed to
+#'   the console.
+#' @return Invisibly returns the Markdown string. If `output_file` is specified,
 #'   the Markdown is also written to that file.
 #' @export
 #' @examples
@@ -17,9 +17,9 @@
 #' extract_review("report_reviewed.docx")
 #'
 #' # Save to file
-#' extract_review("report_reviewed.docx", output = "feedback.md")
+#' extract_review("report_reviewed.docx", output_file = "feedback.md")
 #' }
-extract_review <- function(docx_path, output = NULL) {
+extract_review <- function(docx_path, output_file = NULL) {
   check_docx_path(docx_path)
 
   comments <- extract_comments(docx_path)
@@ -27,13 +27,13 @@ extract_review <- function(docx_path, output = NULL) {
 
   md <- format_review_markdown(comments, changes, basename(docx_path))
 
-  if (!is.null(output)) {
-    output_dir <- dirname(output)
+  if (!is.null(output_file)) {
+    output_dir <- dirname(output_file)
     if (!dir.exists(output_dir)) {
       cli::cli_abort("Directory {.file {output_dir}} does not exist.")
     }
-    writeLines(md, output)
-    cli::cli_inform("Review feedback written to {.file {output}}.")
+    writeLines(md, output_file)
+    cli::cli_inform("Review feedback written to {.file {output_file}}.")
   } else {
     cat(md, sep = "\n")
   }
@@ -60,7 +60,7 @@ format_review_markdown <- function(comments, changes, filename) {
       date_fmt <- format_date(row$date)
       lines <- c(lines,
         paste0("### ", i, ". ", row$author, " (", date_fmt, ")"),
-        paste0('> **Marked text:** "', row$commented_text, '"'),
+        paste0('> **Commented text:** "', row$commented_text, '"'),
         paste0('> **Paragraph:** "', row$paragraph_context, '"'),
         "",
         paste0("**Comment:** ", row$comment_text),

@@ -4,17 +4,17 @@
 \alias{extract_review}
 \title{Extract all review feedback from a Word document}
 \usage{
-extract_review(docx_path, output = NULL)
+extract_review(docx_path, output_file = NULL)
 }
 \arguments{
 \item{docx_path}{Path to a .docx file.}
 
-\item{output}{Optional file path to write the Markdown output to. If \code{NULL}
-(default), the Markdown string is returned invisibly and printed to the
-console.}
+\item{output_file}{Optional file path to write the Markdown output to. If
+\code{NULL} (default), the Markdown string is returned invisibly and printed to
+the console.}
 }
 \value{
-Invisibly returns the Markdown string. If \code{output} is specified,
+Invisibly returns the Markdown string. If \code{output_file} is specified,
 the Markdown is also written to that file.
 }
 \description{
@@ -28,6 +28,6 @@ processing reviewer feedback.
 extract_review("report_reviewed.docx")
 
 # Save to file
-extract_review("report_reviewed.docx", output = "feedback.md")
+extract_review("report_reviewed.docx", output_file = "feedback.md")
 }
 }

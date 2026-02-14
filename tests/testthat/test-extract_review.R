@@ -41,7 +41,7 @@ test_that("extract_review() writes to file when output is specified", {
   path <- test_path("fixtures", "test_review.docx")
   out_file <- withr::local_tempfile(fileext = ".md")
 
-  capture.output(extract_review(path, output = out_file))
+  capture.output(extract_review(path, output_file = out_file))
 
   expect_true(file.exists(out_file))
   content <- readLines(out_file)

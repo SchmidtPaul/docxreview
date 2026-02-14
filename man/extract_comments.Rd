@@ -16,7 +16,8 @@ A \link[tibble:tibble]{tibble::tibble} with columns:
 \item \code{author}: Character. Name of the comment author.
 \item \code{date}: Character. ISO 8601 timestamp of the comment.
 \item \code{comment_text}: Character. The comment body text.
-\item \code{commented_text}: Character. The text range that was highlighted/selected.
+\item \code{commented_text}: Character. The text range that was highlighted/selected,
+or an empty string if no text range was selected.
 \item \code{paragraph_context}: Character. Full text of the paragraph(s) containing
 the commented range.
 }

@@ -1,4 +1,29 @@
-# Internal helper functions for XML extraction
+# Internal helper functions for XML extraction and input validation
+
+#' Validate docx path
+#' @noRd
+check_docx_path <- function(path) {
+  if (!file.exists(path)) {
+    cli::cli_abort("File {.file {path}} does not exist.")
+  }
+  if (!grepl("\\.docx$", path, ignore.case = TRUE)) {
+    cli::cli_abort("File {.file {path}} is not a {.file .docx} file.")
+  }
+  invisible(path)
+}
+
+#' Empty tibble with the comments schema
+#' @noRd
+empty_comments_tibble <- function() {
+  tibble::tibble(
+    comment_id = character(),
+    author = character(),
+    date = character(),
+    comment_text = character(),
+    commented_text = character(),
+    paragraph_context = character()
+  )
+}
 
 #' Word XML namespace URI
 #' @noRd

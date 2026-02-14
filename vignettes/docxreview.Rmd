@@ -76,7 +76,7 @@ This prints a structured Markdown summary to the console:
 ## Comments (2)
 
 ### 1. Paul Schmidt - BioMath GmbH (2026-02-14)
-> **Marked text:** "data"
+> **Commented text:** "data"
 > **Paragraph:** "data(PlantGrowth)group_summary <- aggregate( ..."
 
 **Comment:** Hide the R code in the final report
@@ -84,7 +84,7 @@ This prints a structured Markdown summary to the console:
 ---
 
 ### 2. Paul Schmidt - BioMath GmbH (2026-02-14)
-> **Marked text:** ""
+> **Commented text:** ""
 > **Paragraph:** ""
 
 **Comment:** Increase the font size in this figure
@@ -109,7 +109,7 @@ This prints a structured Markdown summary to the console:
 To save the output to a file instead:
 
 ```r
-extract_review("example-report-reviewed.docx", output = "feedback.md")
+extract_review("example-report-reviewed.docx", output_file = "feedback.md")
 ```
 
 ## Programmatic Access

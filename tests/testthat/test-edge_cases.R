@@ -83,7 +83,7 @@ test_that("sub() marks only first occurrence of duplicated text", {
 
 test_that("extract_review() markdown has correct counts (rich fixture)", {
   path <- test_path("fixtures", "test_review_rich.docx")
-  md <- extract_review(path, output = tempfile(fileext = ".md"))
+  md <- extract_review(path, output_file = tempfile(fileext = ".md"))
 
   expect_match(md, "Comments \\(3\\)", all = FALSE)
   expect_match(md, "Tracked Changes \\(6\\)", all = FALSE)
@@ -91,7 +91,7 @@ test_that("extract_review() markdown has correct counts (rich fixture)", {
 
 test_that("extract_review() markdown shows 'unknown date' for missing date", {
   path <- test_path("fixtures", "test_review_rich.docx")
-  md <- extract_review(path, output = tempfile(fileext = ".md"))
+  md <- extract_review(path, output_file = tempfile(fileext = ".md"))
 
   expect_match(md, "unknown date", all = FALSE)
 })
@@ -173,7 +173,7 @@ test_that("extract_review() errors when output directory does not exist", {
   bad_output <- file.path(tempdir(), "nonexistent_subdir_12345", "out.md")
 
   expect_error(
-    extract_review(path, output = bad_output),
+    extract_review(path, output_file = bad_output),
     "does not exist",
     class = "rlang_error"
   )
@@ -183,6 +183,6 @@ test_that("extract_review() writes file to valid temp path", {
   path <- test_path("fixtures", "test_review_rich.docx")
   out <- tempfile(fileext = ".md")
 
-  extract_review(path, output = out)
+  extract_review(path, output_file = out)
   expect_true(file.exists(out))
 })

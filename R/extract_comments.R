@@ -10,7 +10,8 @@
 #'   - `author`: Character. Name of the comment author.
 #'   - `date`: Character. ISO 8601 timestamp of the comment.
 #'   - `comment_text`: Character. The comment body text.
-#'   - `commented_text`: Character. The text range that was highlighted/selected.
+#'   - `commented_text`: Character. The text range that was highlighted/selected,
+#'     or an empty string if no text range was selected.
 #'   - `paragraph_context`: Character. Full text of the paragraph(s) containing
 #'     the commented range.
 #' @export
@@ -69,30 +70,5 @@ extract_comments <- function(docx_path) {
     comment_text = comment_text,
     commented_text = commented_text,
     paragraph_context = paragraph_contexts
-  )
-}
-
-#' Validate docx path
-#' @noRd
-check_docx_path <- function(path) {
-  if (!file.exists(path)) {
-    cli::cli_abort("File {.file {path}} does not exist.")
-  }
-  if (!grepl("\\.docx$", path, ignore.case = TRUE)) {
-    cli::cli_abort("File {.file {path}} is not a {.file .docx} file.")
-  }
-  invisible(path)
-}
-
-#' Empty tibble with the comments schema
-#' @noRd
-empty_comments_tibble <- function() {
-  tibble::tibble(
-    comment_id = character(),
-    author = character(),
-    date = character(),
-    comment_text = character(),
-    commented_text = character(),
-    paragraph_context = character()
   )
 }

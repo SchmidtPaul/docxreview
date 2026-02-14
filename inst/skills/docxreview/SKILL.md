@@ -25,7 +25,7 @@ Extract structured review feedback (comments and tracked changes) from .docx fil
 docxreview::extract_review("path/to/reviewed.docx")
 ```
 
-Returns a formatted Markdown summary of all comments and tracked changes, printed to console. Use `output = "feedback.md"` to write to file.
+Returns a formatted Markdown summary of all comments and tracked changes, printed to console. Use `output_file = "feedback.md"` to write to file.
 
 ### Programmatic access as tibbles
 

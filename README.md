@@ -30,7 +30,7 @@ library(docxreview)
 extract_review("report_reviewed.docx")
 
 # Save to file
-extract_review("report_reviewed.docx", output = "feedback.md")
+extract_review("report_reviewed.docx", output_file = "feedback.md")
 
 # Programmatic access as tibbles
 comments <- extract_comments("report_reviewed.docx")
@@ -89,7 +89,7 @@ system.file("skills", "docxreview", package = "docxreview")
 | Function | Returns | Description |
 |---|---|---|
 | `extract_review()` | Markdown (character) | Full formatted summary of all comments and tracked changes |
-| `extract_comments()` | tibble | Comments with author, date, comment text, marked text, and paragraph context |
+| `extract_comments()` | tibble | Comments with author, date, comment text, commented text, and paragraph context |
 | `extract_tracked_changes()` | tibble | Insertions and deletions with author, date, changed text, and paragraph context |
 
 See `vignette("docxreview")` for the full workflow documentation.
