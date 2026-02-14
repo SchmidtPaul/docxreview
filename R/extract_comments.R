@@ -31,9 +31,7 @@ extract_comments <- function(docx_path) {
     return(empty_comments_tibble())
   }
 
-  # Access the internal officer XML object for paragraph-level context
-  # (no public API for this — doc_obj$get() returns the body XML tree)
-  doc_xml <- doc$doc_obj$get()
+  doc_xml <- officer::docx_body_xml(doc)
 
   # For each comment, find the paragraph(s) containing the comment range
   paragraph_contexts <- vapply(raw$comment_id, function(id) {

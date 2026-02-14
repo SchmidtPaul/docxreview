@@ -56,6 +56,8 @@ format_context_with_markup <- function(paragraph_text, changed_text, type) {
     insertion = paste0("**", changed_text, "**"),
     changed_text
   )
-  # sub() replaces only the first occurrence — intentional, as duplicates are rare
+  # sub() replaces only the first occurrence — if changed_text appears multiple
+
+  # times in the paragraph, only the first match is marked (see test-edge_cases.R)
   sub(changed_text, markup, paragraph_text, fixed = TRUE)
 }

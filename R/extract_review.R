@@ -28,6 +28,10 @@ extract_review <- function(docx_path, output = NULL) {
   md <- format_review_markdown(comments, changes, basename(docx_path))
 
   if (!is.null(output)) {
+    output_dir <- dirname(output)
+    if (!dir.exists(output_dir)) {
+      cli::cli_abort("Directory {.file {output_dir}} does not exist.")
+    }
     writeLines(md, output)
     cli::cli_inform("Review feedback written to {.file {output}}.")
   } else {
@@ -99,7 +103,9 @@ format_review_markdown <- function(comments, changes, filename) {
 #' Format ISO 8601 date to a shorter display format
 #' @noRd
 format_date <- function(date_string) {
-  if (is.na(date_string) || nchar(date_string) == 0) return("unknown date")
+  if (is.null(date_string) || is.na(date_string) || nchar(date_string) == 0) {
+    return("unknown date")
+  }
   # Try to parse and format; fall back to raw string
   parsed <- tryCatch(
     as.Date(date_string),
