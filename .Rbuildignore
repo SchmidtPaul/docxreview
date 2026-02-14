@@ -5,3 +5,7 @@
 ^pkgdown$
 ^\.github$
 ^README\.md$
+^docs$
+^vignettes/example-report\.qmd$
+^vignettes/example-report\.docx$
+^vignettes/example-report-reviewed\.docx$

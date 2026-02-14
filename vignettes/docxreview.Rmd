@@ -7,79 +7,109 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-## The Problem
+## The Workflow
 
-A common workflow in reproducible reporting looks like this:
+A common workflow in reproducible reporting:
 
 1. Write your report in Quarto (`.qmd`) or R Markdown (`.Rmd`).
 2. Render to `.docx` for review.
 3. A reviewer opens the Word document, adds **comments** and **tracked changes**.
-4. You receive the reviewed `.docx` and manually work through each comment and
-   change to update your source document.
+4. You receive the reviewed `.docx` and manually work through each piece of
+   feedback to update your source document.
 
-Step 4 is tedious, error-prone, and doesn't scale well when multiple reviewers
-are involved. **docxreview** automates the extraction of reviewer feedback so you
-can focus on revising your source.
+Step 4 is tedious and error-prone. **docxreview** automates the extraction of
+reviewer feedback so you can focus on revising your source.
 
-## Step 1: Render Your Document
+## A Concrete Example
 
-Render your Quarto or R Markdown source to Word:
+To demonstrate the full workflow, we use a short Quarto report that analyzes
+R's built-in `PlantGrowth` dataset. The source files are available in the
+[vignettes/ directory](https://github.com/SchmidtPaul/docxreview/tree/master/vignettes)
+of the GitHub repository:
 
-```bash
-quarto render report.qmd --to docx
-```
+| File | Description |
+|------|-------------|
+| `example-report.qmd` | Original Quarto source |
+| `example-report.docx` | Rendered Word document |
+| `example-report-reviewed.docx` | Word document after review |
 
-## Step 2: Review in Word
+## The Source Document
 
-Send the `.docx` to your reviewer. They add comments and tracked changes
-(insertions and deletions) using Word's built-in review tools. No special setup
-is required on their end.
+The original report (`example-report.qmd`) contains a few intentional
+imperfections that a reviewer would flag:
 
-## Step 3: Extract Feedback
+- **Typos** in the introduction: "analzes" instead of "analyzes" and "determin"
+  instead of "determine"
+- **Visible R code** in the rendered document (no `echo: false`)
+- **Small font size** in the plot (ggplot2 default theme)
 
-Once you receive the reviewed document, use `extract_review()` to get a
-structured Markdown summary:
+After rendering with `quarto render example-report.qmd --to docx`, the `.docx`
+file is sent to a reviewer.
+
+## The Review
+
+The reviewer opens the document in Microsoft Word with Track Changes enabled and:
+
+1. **Corrects the typos** — Word tracks these as insertions of the missing
+   characters ("y" in "analyzes", "e" in "determine")
+2. **Adds a comment** on a code block: *"Hide the R code in the final report"*
+3. **Adds a comment** on the figure: *"Increase the font size in this figure"*
+
+The result is `example-report-reviewed.docx` — a document with 2 comments and
+2 tracked changes.
+
+## Extracting Feedback
+
+With docxreview, extracting all feedback takes a single function call:
 
 ```r
 library(docxreview)
 
-extract_review("report_reviewed.docx")
+extract_review("example-report-reviewed.docx")
 ```
 
-This prints a Markdown-formatted summary to the console:
+This prints a structured Markdown summary to the console:
 
 ```
-# Review Feedback: report_reviewed.docx
+# Review Feedback: example-report-reviewed.docx
 
-## Comments (1)
+## Comments (2)
 
-### 1. Max Mustermann (2024-01-15)
-> **Marked text:** "the primary endpoint was overall survival"
-> **Paragraph:** "In this study, the primary endpoint was overall survival."
+### 1. Paul Schmidt - BioMath GmbH (2026-02-14)
+> **Marked text:** "data"
+> **Paragraph:** "data(PlantGrowth)group_summary <- aggregate( ..."
 
-**Comment:** Should we also mention secondary endpoints here?
+**Comment:** Hide the R code in the final report
+
+---
+
+### 2. Paul Schmidt - BioMath GmbH (2026-02-14)
+> **Marked text:** ""
+> **Paragraph:** ""
+
+**Comment:** Increase the font size in this figure
 
 ---
 
 ## Tracked Changes (2)
 
-### 1. [Deletion] Max Mustermann (2024-01-15)
-> **Deleted:** "approximately"
-> **Paragraph:** "The sample size was ~~approximately~~ 200 patients."
+### 1. [Insertion] Paul Schmidt - BioMath GmbH (2026-02-14)
+> **Inserted:** "y"
+> **Paragraph:** "This report anal**y**zes the PlantGrowth dataset, ..."
 
 ---
 
-### 2. [Insertion] Max Mustermann (2024-01-15)
-> **Inserted:** "statistically significant"
-> **Paragraph:** "The difference was **statistically significant** (p < 0.05)."
+### 2. [Insertion] Paul Schmidt - BioMath GmbH (2026-02-14)
+> **Inserted:** "e"
+> **Paragraph:** "This r**e**port analyzes the PlantGrowth dataset, ..."
 
 ---
 ```
 
-To save the output to a file:
+To save the output to a file instead:
 
 ```r
-extract_review("report_reviewed.docx", output = "feedback.md")
+extract_review("example-report-reviewed.docx", output = "feedback.md")
 ```
 
 ## Programmatic Access
@@ -88,65 +118,56 @@ For filtering or further processing, use the individual extraction functions
 that return tibbles:
 
 ```r
-# Extract comments as a tibble
-comments <- extract_comments("report_reviewed.docx")
+comments <- extract_comments("example-report-reviewed.docx")
 comments
 ```
 
 ```
-# A tibble: 1 x 6
-  comment_id author          date       comment_text   commented_text  paragraph_context
-  <chr>      <chr>           <chr>      <chr>          <chr>           <chr>
-1 1          Max Mustermann  2024-01-15 Should we ...  the primary ... In this study, ...
+# A tibble: 2 x 6
+  comment_id author                     date       comment_text   commented_text paragraph_context
+  <chr>      <chr>                      <chr>      <chr>          <chr>          <chr>
+1 4          Paul Schmidt - BioMath GmbH 2026-02-14 Hide the R ... "data"        "data(PlantGro..."
+2 7          Paul Schmidt - BioMath GmbH 2026-02-14 Increase th... ""            ""
 ```
 
 ```r
-# Extract tracked changes as a tibble
-changes <- extract_tracked_changes("report_reviewed.docx")
+changes <- extract_tracked_changes("example-report-reviewed.docx")
 changes
 ```
 
 ```
 # A tibble: 2 x 6
-  change_id type      author          date       changed_text            paragraph_context
-      <int> <chr>     <chr>           <chr>      <chr>                   <chr>
-1         1 deletion  Max Mustermann  2024-01-15 approximately           The sample size ...
-2         2 insertion Max Mustermann  2024-01-15 statistically signifi~
+  change_id type      author                      date       changed_text paragraph_context
+      <int> <chr>     <chr>                       <chr>      <chr>        <chr>
+1         1 insertion Paul Schmidt - BioMath GmbH 2026-02-14 y            This report anal...
+2         2 insertion Paul Schmidt - BioMath GmbH 2026-02-14 e            This r**e**port ...
 ```
 
-You can filter and manipulate these tibbles with standard dplyr operations:
+You can filter these tibbles with standard dplyr operations:
 
 ```r
-# Filter changes by a specific reviewer
-dplyr::filter(changes, author == "Max Mustermann")
+# Show only comments
+dplyr::filter(comments, grepl("code", comment_text))
 
-# Show only deletions
-dplyr::filter(changes, type == "deletion")
+# Show only insertions
+dplyr::filter(changes, type == "insertion")
 ```
 
-## Writing to File
-
-Save the Markdown output directly to a file for archiving or further processing:
-
-```r
-extract_review("report_reviewed.docx", output = "feedback.md")
-```
-
-## Claude Code Integration
+## Incorporating Feedback with Claude Code
 
 docxreview is designed to work seamlessly with
 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and the
-[btw](https://github.com/posit-dev/btw) MCP server. This enables a fully
-assisted review workflow:
-
-1. **btw** provides Claude Code with access to your R session.
-2. **docxreview** extracts the review feedback.
-3. Claude Code reads the feedback and helps you revise your `.qmd` source.
+[btw](https://github.com/posit-dev/btw) MCP server. Instead of manually
+working through each comment and tracked change, you can let Claude Code
+extract the feedback and revise your source document in one step.
 
 ### Setup
 
-Make the docxreview skill available to Claude Code by adding the skill
-directory to your project. Find the path with:
+1. Install [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and
+   configure [btw](https://github.com/posit-dev/btw) as an MCP server so that
+   Claude Code has access to your R session.
+2. Make the docxreview skill available by adding the skill directory to your
+   project. Find the installed path with:
 
 ```r
 system.file("skills", "docxreview", package = "docxreview")
@@ -154,11 +175,34 @@ system.file("skills", "docxreview", package = "docxreview")
 
 ### Workflow
 
-With btw running as an MCP server, you can ask Claude Code:
+With btw running, open Claude Code and enter a prompt like:
 
-> "Extract the review feedback from `report_reviewed.docx` and help me revise
-> `report.qmd` accordingly."
+> "Extract the review feedback from `example-report-reviewed.docx` and revise
+> `example-report.qmd` to address all comments and tracked changes."
 
-Claude Code will use `extract_review()` to read the feedback, understand the
-comments and tracked changes in context, and suggest concrete edits to your
-Quarto source.
+Claude Code will then:
+
+1. Use `extract_review()` to read all comments and tracked changes from the
+   reviewed DOCX.
+2. Read your Quarto source and understand its structure.
+3. Apply the necessary edits — for our example:
+   - Add `echo: false` to the YAML header (hiding R code).
+   - Add `theme(text = element_text(size = 14))` to the ggplot (larger font).
+   - Fix "analzes" → "analyzes" and "determin" → "determine" (typo
+     corrections).
+4. Report a summary of all changes made.
+
+The revised QMD can then be re-rendered to produce a clean DOCX that addresses
+all reviewer feedback.
+
+## Try It Yourself
+
+All example files are available in the
+[vignettes/ directory](https://github.com/SchmidtPaul/docxreview/tree/master/vignettes)
+of the GitHub repository. Download the QMD and the reviewed DOCX, then try the
+Claude Code workflow described above — or start with the basic extraction:
+
+```r
+library(docxreview)
+extract_review("example-report-reviewed.docx")
+```
