@@ -1,7 +1,7 @@
 #' Extract tracked changes from a Word document
 #'
-#' Reads a .docx file and extracts all tracked changes (insertions and
-#' deletions) including the changed text, author, date, and the full
+#' Reads a .docx file and extracts all tracked changes (insertions, deletions,
+#' and moved text) including the changed text, author, date, and the full
 #' paragraph context. Field instructions (cross-references, TOC entries,
 #' page numbers) and whitespace-only changes are automatically filtered out.
 #' Consecutive duplicate changes (same type, author, text, and context) are
@@ -10,10 +10,11 @@
 #' @param docx_path Path to a .docx file.
 #' @return A [tibble::tibble] with columns:
 #'   - `change_id`: Integer. Sequential ID for each change.
-#'   - `type`: Character. Either `"insertion"` or `"deletion"`.
+#'   - `type`: Character. One of `"insertion"`, `"deletion"`, `"move_from"`,
+#'     or `"move_to"`.
 #'   - `author`: Character. Name of the person who made the change.
 #'   - `date`: Character. ISO 8601 timestamp of the change.
-#'   - `changed_text`: Character. The text that was inserted or deleted.
+#'   - `changed_text`: Character. The text that was inserted, deleted, or moved.
 #'   - `paragraph_context`: Character. Full text of the containing paragraph,
 #'     with the change marked up (~~deletion~~ or **insertion**).
 #' @export
@@ -36,8 +37,12 @@ extract_tracked_changes_impl <- function(parts) {
   body_xml <- parts$body_xml
   ns <- c(w = ns_w)
 
-  # Combined XPath preserves document order
-  change_nodes <- xml2::xml_find_all(body_xml, "//w:ins | //w:del", ns = ns)
+  # Combined XPath preserves document order (includes moved text)
+  change_nodes <- xml2::xml_find_all(
+    body_xml,
+    "//w:ins | //w:del | //w:moveFrom | //w:moveTo",
+    ns = ns
+  )
 
   if (length(change_nodes) == 0) {
     return(empty_changes_tibble())
@@ -69,9 +74,14 @@ extract_change_nodes <- function(nodes, ns) {
   if (length(nodes) == 0) return(empty_changes_tibble())
 
   # Determine type from node name
-  types <- ifelse(xml2::xml_name(nodes) == "ins", "insertion", "deletion")
-  # Text xpath differs: w:ins contains w:r/w:t, w:del contains w:r/w:delText
-  text_xpaths <- ifelse(types == "insertion", ".//w:t", ".//w:delText")
+  type_map <- c(
+    ins = "insertion", del = "deletion",
+    moveFrom = "move_from", moveTo = "move_to"
+  )
+  types <- unname(type_map[xml2::xml_name(nodes)])
+  # Text xpath: ins/moveTo use w:t, del/moveFrom use w:delText
+  text_xpaths <- ifelse(types %in% c("insertion", "move_to"),
+                         ".//w:t", ".//w:delText")
 
   authors <- xml2::xml_attr(nodes, "author")
   dates <- xml2::xml_attr(nodes, "date")

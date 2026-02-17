@@ -13,17 +13,18 @@ extract_tracked_changes(docx_path)
 A \link[tibble:tibble]{tibble::tibble} with columns:
 \itemize{
 \item \code{change_id}: Integer. Sequential ID for each change.
-\item \code{type}: Character. Either \code{"insertion"} or \code{"deletion"}.
+\item \code{type}: Character. One of \code{"insertion"}, \code{"deletion"}, \code{"move_from"},
+or \code{"move_to"}.
 \item \code{author}: Character. Name of the person who made the change.
 \item \code{date}: Character. ISO 8601 timestamp of the change.
-\item \code{changed_text}: Character. The text that was inserted or deleted.
+\item \code{changed_text}: Character. The text that was inserted, deleted, or moved.
 \item \code{paragraph_context}: Character. Full text of the containing paragraph,
 with the change marked up (~~deletion~~ or \strong{insertion}).
 }
 }
 \description{
-Reads a .docx file and extracts all tracked changes (insertions and
-deletions) including the changed text, author, date, and the full
+Reads a .docx file and extracts all tracked changes (insertions, deletions,
+and moved text) including the changed text, author, date, and the full
 paragraph context. Field instructions (cross-references, TOC entries,
 page numbers) and whitespace-only changes are automatically filtered out.
 Consecutive duplicate changes (same type, author, text, and context) are

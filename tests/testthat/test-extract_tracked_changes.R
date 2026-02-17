@@ -88,3 +88,44 @@ test_that("extract_tracked_changes() assigns sequential change_id after filter",
 
   expect_equal(result$change_id, 1:3)
 })
+
+# -- Moved text fixture --------------------------------------------------------
+
+test_that("extract_tracked_changes() finds move_from and move_to", {
+  path <- test_path("fixtures", "test_moved_text.docx")
+  result <- extract_tracked_changes(path)
+
+  expect_equal(nrow(result), 4)
+  expect_true("move_from" %in% result$type)
+  expect_true("move_to" %in% result$type)
+})
+
+test_that("extract_tracked_changes() extracts correct move_from data", {
+  path <- test_path("fixtures", "test_moved_text.docx")
+  result <- extract_tracked_changes(path)
+
+  mf <- result[result$type == "move_from", ]
+  expect_equal(nrow(mf), 1)
+  expect_equal(mf$author, "Anna Beispiel")
+  expect_match(mf$changed_text, "The conclusion")
+  expect_match(mf$paragraph_context, "~~The conclusion~~")
+})
+
+test_that("extract_tracked_changes() extracts correct move_to data", {
+  path <- test_path("fixtures", "test_moved_text.docx")
+  result <- extract_tracked_changes(path)
+
+  mt <- result[result$type == "move_to", ]
+  expect_equal(nrow(mt), 1)
+  expect_equal(mt$author, "Anna Beispiel")
+  expect_match(mt$changed_text, "The conclusion")
+  expect_match(mt$paragraph_context, "\\*\\*The conclusion\\*\\*")
+})
+
+test_that("extract_tracked_changes() still finds ins/del alongside moves", {
+  path <- test_path("fixtures", "test_moved_text.docx")
+  result <- extract_tracked_changes(path)
+
+  expect_equal(nrow(result[result$type == "deletion", ]), 1)
+  expect_equal(nrow(result[result$type == "insertion", ]), 1)
+})

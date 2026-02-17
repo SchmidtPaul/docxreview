@@ -2,7 +2,8 @@
 #'
 #' Reads a .docx file and extracts all comments including the commented
 #' (highlighted) text, the comment text, author, date, and the full paragraph
-#' context in which the comment is anchored.
+#' context in which the comment is anchored. Reply threading is resolved
+#' from `commentsExtended.xml` when available.
 #'
 #' @param docx_path Path to a .docx file.
 #' @return A [tibble::tibble] with columns:
@@ -14,6 +15,8 @@
 #'     or an empty string if no text range was selected.
 #'   - `paragraph_context`: Character. Full text of the paragraph(s) containing
 #'     the commented range.
+#'   - `parent_comment_id`: Character. The ID of the parent comment for replies,
+#'     or `NA` for top-level comments.
 #' @export
 #' @examples
 #' # Extract comments from a reviewed document
@@ -64,20 +67,94 @@ extract_comments_impl <- function(parts) {
     extract_comment_paragraph_context(body_xml, id, ns)
   }, character(1))
 
+  # Resolve reply threading from commentsExtended.xml
+  parent_ids <- resolve_comment_threading(
+    comments_xml, parts$comments_ext_xml, ids
+  )
+
   tibble::tibble(
     comment_id = ids,
     author = authors,
     date = dates,
     comment_text = comment_texts,
     commented_text = commented_texts,
-    paragraph_context = paragraph_contexts
+    paragraph_context = paragraph_contexts,
+    parent_comment_id = parent_ids
   )
+}
+
+#' Resolve comment threading from commentsExtended.xml
+#'
+#' Maps paraId attributes between comments.xml and commentsExtended.xml
+#' to determine parent-child relationships.
+#'
+#' @param comments_xml xml_document of comments.xml.
+#' @param comments_ext_xml xml_document of commentsExtended.xml, or NULL.
+#' @param comment_ids Character vector of comment IDs.
+#' @return Character vector of parent comment IDs (NA for top-level).
+#' @noRd
+resolve_comment_threading <- function(comments_xml, comments_ext_xml,
+                                       comment_ids) {
+  if (is.null(comments_ext_xml)) {
+    return(rep(NA_character_, length(comment_ids)))
+  }
+
+  ns <- c(w = ns_w)
+
+  # Build map: paraId → comment_id from comments.xml
+  # Each w:comment has w:p children; the last w:p carries the paraId
+  comment_nodes <- xml2::xml_find_all(comments_xml, "//w:comment", ns = ns)
+
+  para_to_comment <- character()
+  for (node in comment_nodes) {
+    cid <- xml2::xml_attr(node, "id")
+    p_nodes <- xml2::xml_find_all(node, ".//w:p", ns = ns)
+    if (length(p_nodes) > 0) {
+      last_p <- p_nodes[[length(p_nodes)]]
+      # xml2 strips namespace prefix from attributes
+      para_id <- xml2::xml_attr(last_p, "paraId")
+      if (!is.na(para_id)) {
+        para_to_comment[para_id] <- cid
+      }
+    }
+  }
+
+  if (length(para_to_comment) == 0) {
+    return(rep(NA_character_, length(comment_ids)))
+  }
+
+  # Build map: paraId → paraIdParent from commentsExtended.xml
+  # local-name() XPath handles namespace variations (w15, w16cid, etc.)
+  ext_nodes <- xml2::xml_find_all(
+    comments_ext_xml, "//*[local-name()='commentEx']"
+  )
+
+  para_to_parent_para <- character()
+  for (node in ext_nodes) {
+    pid <- xml2::xml_attr(node, "paraId")
+    parent_pid <- xml2::xml_attr(node, "paraIdParent")
+    if (!is.na(pid) && !is.na(parent_pid)) {
+      para_to_parent_para[pid] <- parent_pid
+    }
+  }
+
+  # For each comment_id: find its paraId, look up paraIdParent, map back
+  vapply(comment_ids, function(cid) {
+    my_para <- names(para_to_comment)[para_to_comment == cid]
+    if (length(my_para) == 0) return(NA_character_)
+
+    parent_para <- para_to_parent_para[my_para[1]]
+    if (is.na(parent_para)) return(NA_character_)
+
+    parent_cid <- para_to_comment[parent_para]
+    if (is.na(parent_cid)) NA_character_ else unname(parent_cid)
+  }, character(1), USE.NAMES = FALSE)
 }
 
 #' Extract the text range selected by a comment
 #'
-#' Finds all w:r (run) nodes between commentRangeStart and commentRangeEnd
-#' within the same paragraph and collects their text.
+#' Finds all w:r (run) nodes between commentRangeStart and commentRangeEnd,
+#' handling comments that span across multiple paragraphs.
 #'
 #' @param body_xml xml_document of the document body.
 #' @param comment_id Character. The comment ID to look up.
@@ -99,33 +176,69 @@ extract_commented_text <- function(body_xml, comment_id, ns) {
   )
   if (inherits(range_end, "xml_missing")) return("")
 
-  # Get the parent paragraph of the range start
-  parent_p <- xml2::xml_find_first(range_start, "ancestor::w:p", ns = ns)
-  if (inherits(parent_p, "xml_missing")) return("")
+  p_start <- xml2::xml_find_first(range_start, "ancestor::w:p", ns = ns)
+  p_end <- xml2::xml_find_first(range_end, "ancestor::w:p", ns = ns)
+  if (inherits(p_start, "xml_missing")) return("")
 
-  # Strategy: walk sibling nodes between commentRangeStart and commentRangeEnd
-  # within the paragraph, collecting text from w:r nodes
-  children <- xml2::xml_children(parent_p)
-  collecting <- FALSE
+  # Same paragraph: fast path
+  if (xml2::xml_path(p_start) == xml2::xml_path(p_end)) {
+    return(collect_runs_in_paragraph(p_start, comment_id, ns,
+                                     from_start = TRUE, to_end = TRUE))
+  }
+
+  # Multi-paragraph: collect from start-p, middle paragraphs, end-p
+  all_p <- xml2::xml_find_all(body_xml, "//w:p", ns = ns)
+  p_paths <- xml2::xml_path(all_p)
+  idx_start <- match(xml2::xml_path(p_start), p_paths)
+  idx_end <- match(xml2::xml_path(p_end), p_paths)
+
+  texts <- character()
+  # Start paragraph: runs after commentRangeStart
+  texts <- c(texts, collect_runs_in_paragraph(p_start, comment_id, ns,
+                                               from_start = TRUE, to_end = FALSE))
+  # Middle paragraphs: all text
+  if (idx_end - idx_start > 1) {
+    for (idx in seq(idx_start + 1, idx_end - 1)) {
+      texts <- c(texts, get_paragraph_text(all_p[[idx]]))
+    }
+  }
+  # End paragraph: runs before commentRangeEnd
+  texts <- c(texts, collect_runs_in_paragraph(p_end, comment_id, ns,
+                                               from_start = FALSE, to_end = TRUE))
+
+  paste(texts[nchar(texts) > 0], collapse = " ")
+}
+
+#' Collect run text within a paragraph relative to comment markers
+#'
+#' @param p_node An xml_node representing a w:p element.
+#' @param comment_id The comment ID.
+#' @param ns XML namespaces.
+#' @param from_start If TRUE, start collecting after commentRangeStart.
+#' @param to_end If TRUE, stop collecting at commentRangeEnd.
+#' @return Character string of collected text.
+#' @noRd
+collect_runs_in_paragraph <- function(p_node, comment_id, ns,
+                                       from_start, to_end) {
+  children <- xml2::xml_children(p_node)
+  # If from_start is FALSE, we start collecting immediately (middle/end para)
+  collecting <- !from_start
   texts <- character()
 
   for (child in children) {
     child_name <- xml2::xml_name(child)
 
-    # Check if this is our commentRangeStart
     if (child_name == "commentRangeStart" &&
         xml2::xml_attr(child, "id") == comment_id) {
       collecting <- TRUE
       next
     }
 
-    # Check if this is our commentRangeEnd
     if (child_name == "commentRangeEnd" &&
         xml2::xml_attr(child, "id") == comment_id) {
       break
     }
 
-    # Collect text from runs between start and end
     if (collecting && child_name == "r") {
       t_nodes <- xml2::xml_find_all(child, ".//w:t", ns = ns)
       texts <- c(texts, xml2::xml_text(t_nodes))
@@ -136,6 +249,8 @@ extract_commented_text <- function(body_xml, comment_id, ns) {
 }
 
 #' Extract paragraph context for a comment
+#'
+#' Returns text from all paragraphs that the comment range spans.
 #'
 #' @param body_xml xml_document of the document body.
 #' @param comment_id Character. The comment ID to look up.
@@ -150,8 +265,34 @@ extract_comment_paragraph_context <- function(body_xml, comment_id, ns) {
   )
   if (inherits(range_start, "xml_missing")) return(NA_character_)
 
-  parent_p <- xml2::xml_find_first(range_start, "ancestor::w:p", ns = ns)
-  if (inherits(parent_p, "xml_missing")) return(NA_character_)
+  range_end <- xml2::xml_find_first(
+    body_xml,
+    paste0("//w:commentRangeEnd[@w:id='", comment_id, "']"),
+    ns = ns
+  )
 
-  get_paragraph_text(parent_p)
+  p_start <- xml2::xml_find_first(range_start, "ancestor::w:p", ns = ns)
+  if (inherits(p_start, "xml_missing")) return(NA_character_)
+
+  # If no range_end or same paragraph, return single paragraph
+
+  if (inherits(range_end, "xml_missing")) {
+    return(get_paragraph_text(p_start))
+  }
+  p_end <- xml2::xml_find_first(range_end, "ancestor::w:p", ns = ns)
+  if (xml2::xml_path(p_start) == xml2::xml_path(p_end)) {
+    return(get_paragraph_text(p_start))
+  }
+
+  # Multi-paragraph: collect text from all paragraphs in range
+  all_p <- xml2::xml_find_all(body_xml, "//w:p", ns = ns)
+  p_paths <- xml2::xml_path(all_p)
+  idx_start <- match(xml2::xml_path(p_start), p_paths)
+  idx_end <- match(xml2::xml_path(p_end), p_paths)
+
+  texts <- vapply(seq(idx_start, idx_end), function(i) {
+    get_paragraph_text(all_p[[i]])
+  }, character(1))
+
+  paste(texts[nchar(texts) > 0], collapse = " ")
 }

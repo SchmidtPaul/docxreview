@@ -20,12 +20,15 @@ A \link[tibble:tibble]{tibble::tibble} with columns:
 or an empty string if no text range was selected.
 \item \code{paragraph_context}: Character. Full text of the paragraph(s) containing
 the commented range.
+\item \code{parent_comment_id}: Character. The ID of the parent comment for replies,
+or \code{NA} for top-level comments.
 }
 }
 \description{
 Reads a .docx file and extracts all comments including the commented
 (highlighted) text, the comment text, author, date, and the full paragraph
-context in which the comment is anchored.
+context in which the comment is anchored. Reply threading is resolved
+from \code{commentsExtended.xml} when available.
 }
 \examples{
 # Extract comments from a reviewed document

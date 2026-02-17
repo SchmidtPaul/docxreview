@@ -4,7 +4,7 @@
 \alias{extract_review}
 \title{Extract all review feedback from a Word document}
 \usage{
-extract_review(docx_path, output_file = NULL)
+extract_review(docx_path, output_file = NULL, group_by_author = FALSE)
 }
 \arguments{
 \item{docx_path}{Path to a .docx file.}
@@ -12,6 +12,9 @@ extract_review(docx_path, output_file = NULL)
 \item{output_file}{Optional file path to write the Markdown output to. If
 \code{NULL} (default), the Markdown string is returned invisibly and printed to
 the console.}
+
+\item{group_by_author}{If \code{TRUE}, the Markdown output is grouped by author
+with each author as a top-level section. Defaults to \code{FALSE}.}
 }
 \value{
 Invisibly returns the Markdown string. If \code{output_file} is specified,
@@ -26,6 +29,9 @@ processing reviewer feedback.
 # Print review feedback to console
 \dontrun{
 extract_review("report_reviewed.docx")
+
+# Group feedback by author
+extract_review("report_reviewed.docx", group_by_author = TRUE)
 
 # Save to file
 extract_review("report_reviewed.docx", output_file = "feedback.md")

@@ -21,7 +21,8 @@ empty_comments_tibble <- function() {
     date = character(),
     comment_text = character(),
     commented_text = character(),
-    paragraph_context = character()
+    paragraph_context = character(),
+    parent_comment_id = character()
   )
 }
 
@@ -50,11 +51,17 @@ read_docx_xml <- function(docx_path) {
   }
 
   comments_path <- file.path(tmpdir, "word", "comments.xml")
+  comments_ext_path <- file.path(tmpdir, "word", "commentsExtended.xml")
 
   list(
     body_xml = xml2::read_xml(body_path),
     comments_xml = if (file.exists(comments_path)) {
       xml2::read_xml(comments_path)
+    } else {
+      NULL
+    },
+    comments_ext_xml = if (file.exists(comments_ext_path)) {
+      xml2::read_xml(comments_ext_path)
     } else {
       NULL
     }
@@ -111,6 +118,8 @@ format_context_with_markup <- function(paragraph_text, changed_text, type) {
   markup <- switch(type,
     deletion = paste0("~~", changed_text, "~~"),
     insertion = paste0("**", changed_text, "**"),
+    move_from = paste0("~~", changed_text, "~~"),
+    move_to = paste0("**", changed_text, "**"),
     changed_text
   )
   # sub() replaces only the first occurrence — if changed_text appears multiple
