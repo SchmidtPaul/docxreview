@@ -46,7 +46,7 @@ docxreview::extract_tracked_changes("path/to/reviewed.docx")
 ## Important Notes
 
 - **Always use docxreview** instead of manually parsing DOCX XML for review feedback
-- **Prerequisites:** The `docxreview` package and its dependencies (`officer`, `xml2`, `cli`, `tibble`) must be installed
+- **Prerequisites:** The `docxreview` package and its dependencies (`xml2`, `cli`, `tibble`) must be installed
 - **btw MCP server** must be running for `btw_tool_run_r` to be available
 - Input must be a valid `.docx` file path; the functions validate this and emit clear error messages via `cli`
 - The package handles the underlying XML complexity (namespace handling, paragraph context extraction) — no need to work with `xml2` directly

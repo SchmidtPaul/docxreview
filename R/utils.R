@@ -29,6 +29,38 @@ empty_comments_tibble <- function() {
 #' @noRd
 ns_w <- "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
+#' Read and parse DOCX XML parts
+#'
+#' Replaces officer dependency by directly unzipping the DOCX and reading the
+#' XML parts with xml2.
+#'
+#' @param docx_path Path to a .docx file (already validated by check_docx_path).
+#' @return A list with elements:
+#'   - `body_xml`: xml_document for word/document.xml
+#'   - `comments_xml`: xml_document for word/comments.xml, or NULL if absent
+#' @noRd
+read_docx_xml <- function(docx_path) {
+  tmpdir <- tempfile(pattern = "docxreview_")
+  on.exit(unlink(tmpdir, recursive = TRUE), add = TRUE)
+  utils::unzip(docx_path, exdir = tmpdir)
+
+  body_path <- file.path(tmpdir, "word", "document.xml")
+  if (!file.exists(body_path)) {
+    cli::cli_abort("Invalid DOCX: {.file word/document.xml} not found.")
+  }
+
+  comments_path <- file.path(tmpdir, "word", "comments.xml")
+
+  list(
+    body_xml = xml2::read_xml(body_path),
+    comments_xml = if (file.exists(comments_path)) {
+      xml2::read_xml(comments_path)
+    } else {
+      NULL
+    }
+  )
+}
+
 #' Extract full text from a w:p (paragraph) node
 #'
 #' Collects all w:t and w:delText nodes within the paragraph.

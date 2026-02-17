@@ -25,7 +25,6 @@ Suggests:
 Config/testthat/edition: 3
 Imports:
     cli,
-    officer,
     tibble,
     xml2
 VignetteBuilder: knitr

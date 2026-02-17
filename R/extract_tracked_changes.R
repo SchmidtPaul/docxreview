@@ -2,7 +2,10 @@
 #'
 #' Reads a .docx file and extracts all tracked changes (insertions and
 #' deletions) including the changed text, author, date, and the full
-#' paragraph context.
+#' paragraph context. Field instructions (cross-references, TOC entries,
+#' page numbers) and whitespace-only changes are automatically filtered out.
+#' Consecutive duplicate changes (same type, author, text, and context) are
+#' collapsed into a single entry.
 #'
 #' @param docx_path Path to a .docx file.
 #' @return A [tibble::tibble] with columns:
@@ -22,21 +25,36 @@
 #' }
 extract_tracked_changes <- function(docx_path) {
   check_docx_path(docx_path)
+  extract_tracked_changes_impl(read_docx_xml(docx_path))
+}
 
-  doc <- officer::read_docx(docx_path)
-  body_xml <- officer::docx_body_xml(doc)
-
+#' Internal implementation for tracked changes extraction
+#' @param parts List from read_docx_xml() with body_xml and comments_xml.
+#' @return A tibble with tracked changes data.
+#' @noRd
+extract_tracked_changes_impl <- function(parts) {
+  body_xml <- parts$body_xml
   ns <- c(w = ns_w)
 
-  # Combined XPath preserves document order (separate queries + rbind would not)
+  # Combined XPath preserves document order
   change_nodes <- xml2::xml_find_all(body_xml, "//w:ins | //w:del", ns = ns)
 
   if (length(change_nodes) == 0) {
-    cli::cli_inform("No tracked changes found in {.file {docx_path}}.")
     return(empty_changes_tibble())
   }
 
   result <- extract_change_nodes(change_nodes, ns = ns)
+
+  # Filter out field instructions and whitespace-only changes
+  result <- result[nchar(trimws(result$changed_text)) > 0, , drop = FALSE]
+
+  if (nrow(result) == 0) {
+    return(empty_changes_tibble())
+  }
+
+  # Collapse consecutive duplicates (same type + author + changed_text + context)
+  result <- collapse_consecutive_duplicates(result)
+
   result$change_id <- seq_len(nrow(result))
   result[, c("change_id", "type", "author", "date",
              "changed_text", "paragraph_context")]
@@ -50,12 +68,11 @@ extract_tracked_changes <- function(docx_path) {
 extract_change_nodes <- function(nodes, ns) {
   if (length(nodes) == 0) return(empty_changes_tibble())
 
-  # Determine type from node name (preserves document order from combined XPath)
+  # Determine type from node name
   types <- ifelse(xml2::xml_name(nodes) == "ins", "insertion", "deletion")
   # Text xpath differs: w:ins contains w:r/w:t, w:del contains w:r/w:delText
   text_xpaths <- ifelse(types == "insertion", ".//w:t", ".//w:delText")
 
-  # Attributes are not namespace-prefixed in OOXML (just "author", not "w:author")
   authors <- xml2::xml_attr(nodes, "author")
   dates <- xml2::xml_attr(nodes, "date")
 
@@ -77,6 +94,30 @@ extract_change_nodes <- function(nodes, ns) {
     changed_text = changed_texts,
     paragraph_context = paragraph_contexts
   )
+}
+
+#' Collapse consecutive duplicate rows
+#'
+#' When Word splits a single change across multiple w:r runs, it produces
+#' consecutive rows with identical type, author, changed_text, and
+#' paragraph_context. This function collapses them into one row each.
+#'
+#' @param df A tibble from extract_change_nodes().
+#' @return The tibble with consecutive duplicates removed.
+#' @noRd
+collapse_consecutive_duplicates <- function(df) {
+  if (nrow(df) <= 1) return(df)
+
+  keep <- rep(TRUE, nrow(df))
+  for (i in seq(2, nrow(df))) {
+    if (df$type[i] == df$type[i - 1] &&
+        identical(df$author[i], df$author[i - 1]) &&
+        df$changed_text[i] == df$changed_text[i - 1] &&
+        identical(df$paragraph_context[i], df$paragraph_context[i - 1])) {
+      keep[i] <- FALSE
+    }
+  }
+  df[keep, , drop = FALSE]
 }
 
 #' Empty tibble with the tracked changes schema

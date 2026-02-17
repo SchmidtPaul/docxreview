@@ -24,7 +24,10 @@ with the change marked up (~~deletion~~ or \strong{insertion}).
 \description{
 Reads a .docx file and extracts all tracked changes (insertions and
 deletions) including the changed text, author, date, and the full
-paragraph context.
+paragraph context. Field instructions (cross-references, TOC entries,
+page numbers) and whitespace-only changes are automatically filtered out.
+Consecutive duplicate changes (same type, author, text, and context) are
+collapsed into a single entry.
 }
 \examples{
 # Extract tracked changes from a reviewed document

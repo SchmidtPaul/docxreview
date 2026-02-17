@@ -52,3 +52,39 @@ test_that("extract_tracked_changes() returns empty tibble for clean doc", {
     "changed_text", "paragraph_context"
   ))
 })
+
+# -- Field instructions fixture ------------------------------------------------
+
+test_that("extract_tracked_changes() filters field instruction nodes", {
+  path <- test_path("fixtures", "test_field_instructions.docx")
+  result <- extract_tracked_changes(path)
+
+  # 7 raw nodes → 3 after filtering (2 field instr + 1 whitespace + 1 dedup)
+  expect_equal(nrow(result), 3)
+  expect_true("approximately" %in% result$changed_text)
+  expect_true("significant" %in% result$changed_text)
+  expect_true("extra" %in% result$changed_text)
+})
+
+test_that("extract_tracked_changes() removes whitespace-only changes", {
+  path <- test_path("fixtures", "test_field_instructions.docx")
+  result <- extract_tracked_changes(path)
+
+  # No row should have whitespace-only changed_text
+  expect_true(all(nchar(trimws(result$changed_text)) > 0))
+})
+
+test_that("extract_tracked_changes() collapses consecutive duplicates", {
+  path <- test_path("fixtures", "test_field_instructions.docx")
+  result <- extract_tracked_changes(path)
+
+  # "extra" appears only once despite 2 identical w:del nodes
+  expect_equal(sum(result$changed_text == "extra"), 1)
+})
+
+test_that("extract_tracked_changes() assigns sequential change_id after filter", {
+  path <- test_path("fixtures", "test_field_instructions.docx")
+  result <- extract_tracked_changes(path)
+
+  expect_equal(result$change_id, 1:3)
+})

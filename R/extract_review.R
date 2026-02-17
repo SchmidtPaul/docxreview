@@ -22,8 +22,10 @@
 extract_review <- function(docx_path, output_file = NULL) {
   check_docx_path(docx_path)
 
-  comments <- extract_comments(docx_path)
-  changes <- extract_tracked_changes(docx_path)
+  # Parse DOCX once, pass pre-parsed XML to both extractors
+  parts <- read_docx_xml(docx_path)
+  comments <- extract_comments_impl(parts)
+  changes <- extract_tracked_changes_impl(parts)
 
   md <- format_review_markdown(comments, changes, basename(docx_path))
 
