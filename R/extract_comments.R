@@ -17,6 +17,10 @@
 #'     the commented range.
 #'   - `parent_comment_id`: Character. The ID of the parent comment for replies,
 #'     or `NA` for top-level comments.
+#'   - `page`: Integer. Page number based on `w:lastRenderedPageBreak` elements,
+#'     or `NA` if the document has no rendered page break info.
+#'   - `section`: Character. Text of the nearest preceding heading, or `NA` if
+#'     the document has no headings or the comment precedes the first heading.
 #' @export
 #' @examples
 #' # Extract comments from a reviewed document
@@ -72,6 +76,42 @@ extract_comments_impl <- function(parts) {
     comments_xml, parts$comments_ext_xml, ids
   )
 
+  # Precompute page/section lookups (once per document)
+  all_p <- xml2::xml_find_all(body_xml, "//w:p", ns = ns)
+  p_paths <- xml2::xml_path(all_p)
+  page_break_indices <- precompute_page_break_indices(all_p, ns)
+  heading_style_ids <- build_heading_style_ids(parts$styles_xml, ns)
+  heading_indices <- precompute_heading_indices(all_p, heading_style_ids, ns)
+
+  # Per-comment: find anchor paragraph (commentRangeStart → ancestor::w:p)
+  pages <- vapply(ids, function(id) {
+    range_start <- xml2::xml_find_first(
+      body_xml,
+      paste0("//w:commentRangeStart[@w:id='", id, "']"),
+      ns = ns
+    )
+    if (inherits(range_start, "xml_missing")) return(NA_integer_)
+    p_start <- xml2::xml_find_first(range_start, "ancestor::w:p", ns = ns)
+    if (inherits(p_start, "xml_missing")) return(NA_integer_)
+    p_idx <- match(xml2::xml_path(p_start), p_paths)
+    if (is.na(p_idx)) return(NA_integer_)
+    get_page_number(p_start, all_p, p_idx, page_break_indices)
+  }, integer(1), USE.NAMES = FALSE)
+
+  sections <- vapply(ids, function(id) {
+    range_start <- xml2::xml_find_first(
+      body_xml,
+      paste0("//w:commentRangeStart[@w:id='", id, "']"),
+      ns = ns
+    )
+    if (inherits(range_start, "xml_missing")) return(NA_character_)
+    p_start <- xml2::xml_find_first(range_start, "ancestor::w:p", ns = ns)
+    if (inherits(p_start, "xml_missing")) return(NA_character_)
+    p_idx <- match(xml2::xml_path(p_start), p_paths)
+    if (is.na(p_idx)) return(NA_character_)
+    get_nearest_heading(p_idx, all_p, heading_indices)
+  }, character(1), USE.NAMES = FALSE)
+
   tibble::tibble(
     comment_id = ids,
     author = authors,
@@ -79,7 +119,9 @@ extract_comments_impl <- function(parts) {
     comment_text = comment_texts,
     commented_text = commented_texts,
     paragraph_context = paragraph_contexts,
-    parent_comment_id = parent_ids
+    parent_comment_id = parent_ids,
+    page = pages,
+    section = sections
   )
 }
 
@@ -180,6 +222,13 @@ extract_commented_text <- function(body_xml, comment_id, ns) {
   p_end <- xml2::xml_find_first(range_end, "ancestor::w:p", ns = ns)
   if (inherits(p_start, "xml_missing")) return("")
 
+  # commentRangeEnd may sit directly under w:body (no ancestor w:p)
+  if (inherits(p_end, "xml_missing")) {
+    p_end <- xml2::xml_find_first(range_end, "preceding-sibling::w:p[1]",
+                                   ns = ns)
+    if (inherits(p_end, "xml_missing")) return("")
+  }
+
   # Same paragraph: fast path
   if (xml2::xml_path(p_start) == xml2::xml_path(p_end)) {
     return(collect_runs_in_paragraph(p_start, comment_id, ns,
@@ -191,6 +240,9 @@ extract_commented_text <- function(body_xml, comment_id, ns) {
   p_paths <- xml2::xml_path(all_p)
   idx_start <- match(xml2::xml_path(p_start), p_paths)
   idx_end <- match(xml2::xml_path(p_end), p_paths)
+
+  # Guard against match() returning NA (p_start/p_end not found in all_p)
+  if (is.na(idx_start) || is.na(idx_end)) return("")
 
   texts <- character()
   # Start paragraph: runs after commentRangeStart
@@ -280,6 +332,12 @@ extract_comment_paragraph_context <- function(body_xml, comment_id, ns) {
     return(get_paragraph_text(p_start))
   }
   p_end <- xml2::xml_find_first(range_end, "ancestor::w:p", ns = ns)
+  # commentRangeEnd may sit directly under w:body (no ancestor w:p)
+  if (inherits(p_end, "xml_missing")) {
+    p_end <- xml2::xml_find_first(range_end, "preceding-sibling::w:p[1]",
+                                   ns = ns)
+    if (inherits(p_end, "xml_missing")) return(get_paragraph_text(p_start))
+  }
   if (xml2::xml_path(p_start) == xml2::xml_path(p_end)) {
     return(get_paragraph_text(p_start))
   }
@@ -289,6 +347,9 @@ extract_comment_paragraph_context <- function(body_xml, comment_id, ns) {
   p_paths <- xml2::xml_path(all_p)
   idx_start <- match(xml2::xml_path(p_start), p_paths)
   idx_end <- match(xml2::xml_path(p_end), p_paths)
+
+  # Guard against match() returning NA
+  if (is.na(idx_start) || is.na(idx_end)) return(get_paragraph_text(p_start))
 
   texts <- vapply(seq(idx_start, idx_end), function(i) {
     get_paragraph_text(all_p[[i]])

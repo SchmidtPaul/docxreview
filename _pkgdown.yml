@@ -21,3 +21,6 @@ reference:
   - extract_review
   - extract_comments
   - extract_tracked_changes
+- title: Document Comparison
+  contents:
+  - compare_versions

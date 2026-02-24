@@ -5,7 +5,8 @@ test_that("extract_comments() returns expected structure from fixture", {
   expect_s3_class(result, "tbl_df")
   expect_named(result, c(
     "comment_id", "author", "date", "comment_text",
-    "commented_text", "paragraph_context", "parent_comment_id"
+    "commented_text", "paragraph_context", "parent_comment_id",
+    "page", "section"
   ))
   expect_equal(nrow(result), 1)
 })
@@ -35,7 +36,8 @@ test_that("extract_comments() returns empty tibble for doc without comments", {
   expect_equal(nrow(result), 0)
   expect_named(result, c(
     "comment_id", "author", "date", "comment_text",
-    "commented_text", "paragraph_context", "parent_comment_id"
+    "commented_text", "paragraph_context", "parent_comment_id",
+    "page", "section"
   ))
 })
 
@@ -145,4 +147,50 @@ test_that("empty_comments_tibble() includes parent_comment_id", {
   tb <- docxreview:::empty_comments_tibble()
   expect_true("parent_comment_id" %in% names(tb))
   expect_equal(nrow(tb), 0)
+})
+
+# -- commentRangeEnd directly under w:body (no ancestor::w:p) ------------------
+
+test_that("extract_comments() handles commentRangeEnd under w:body", {
+
+  path <- test_path("fixtures", "test_comment_range_end_body.docx")
+  result <- extract_comments(path)
+
+  expect_equal(nrow(result), 1)
+  expect_equal(result$author, "Max Mustermann")
+  expect_match(result$comment_text, "Check this section")
+})
+
+test_that("commentRangeEnd under w:body: commented_text is extracted", {
+  path <- test_path("fixtures", "test_comment_range_end_body.docx")
+  result <- extract_comments(path)
+
+  # Should still extract the text from the paragraph with commentRangeStart
+  expect_match(result$commented_text, "overall survival")
+})
+
+test_that("commentRangeEnd under w:body: paragraph_context is not NA", {
+  path <- test_path("fixtures", "test_comment_range_end_body.docx")
+  result <- extract_comments(path)
+
+  expect_false(is.na(result$paragraph_context))
+  expect_match(result$paragraph_context, "overall survival")
+})
+
+# -- page/section extraction ---------------------------------------------------
+
+test_that("extract_comments() returns page number from page break fixture", {
+  path <- test_path("fixtures", "test_page_breaks.docx")
+  result <- extract_comments(path)
+
+  # Comment is on paragraph 2 (before first page break) → page 1
+  expect_equal(result$page, 1L)
+})
+
+test_that("extract_comments() returns section from heading fixture", {
+  path <- test_path("fixtures", "test_page_breaks.docx")
+  result <- extract_comments(path)
+
+  # Comment is on paragraph 2, which follows the "Introduction" heading
+  expect_equal(result$section, "Introduction")
 })

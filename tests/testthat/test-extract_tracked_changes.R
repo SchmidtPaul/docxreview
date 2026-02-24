@@ -5,7 +5,8 @@ test_that("extract_tracked_changes() returns expected structure", {
   expect_s3_class(result, "tbl_df")
   expect_named(result, c(
     "change_id", "type", "author", "date",
-    "changed_text", "paragraph_context"
+    "changed_text", "paragraph_context",
+    "page", "section"
   ))
   expect_equal(nrow(result), 2)
 })
@@ -49,7 +50,8 @@ test_that("extract_tracked_changes() returns empty tibble for clean doc", {
   expect_equal(nrow(result), 0)
   expect_named(result, c(
     "change_id", "type", "author", "date",
-    "changed_text", "paragraph_context"
+    "changed_text", "paragraph_context",
+    "page", "section"
   ))
 })
 
@@ -128,4 +130,38 @@ test_that("extract_tracked_changes() still finds ins/del alongside moves", {
 
   expect_equal(nrow(result[result$type == "deletion", ]), 1)
   expect_equal(nrow(result[result$type == "insertion", ]), 1)
+})
+
+# -- Page and section extraction -----------------------------------------------
+
+test_that("extract_tracked_changes() returns page number from page break fixture", {
+  path <- test_path("fixtures", "test_page_breaks.docx")
+  result <- extract_tracked_changes(path)
+
+  # The deletion is in paragraph 5, after 1 page break (paragraph 3) → page 2
+  expect_equal(nrow(result), 1)
+  expect_equal(result$type, "deletion")
+  expect_equal(result$page, 2L)
+})
+
+test_that("extract_tracked_changes() returns section from heading fixture", {
+  path <- test_path("fixtures", "test_page_breaks.docx")
+  result <- extract_tracked_changes(path)
+
+  # The deletion is in paragraph 5, which follows "Methods" heading (paragraph 4)
+  expect_equal(result$section, "Methods")
+})
+
+test_that("extract_tracked_changes() returns NA page for doc without page breaks", {
+  path <- test_path("fixtures", "test_review.docx")
+  result <- extract_tracked_changes(path)
+
+  expect_true(all(is.na(result$page)))
+})
+
+test_that("extract_tracked_changes() returns NA section for doc without headings", {
+  path <- test_path("fixtures", "test_review.docx")
+  result <- extract_tracked_changes(path)
+
+  expect_true(all(is.na(result$section)))
 })

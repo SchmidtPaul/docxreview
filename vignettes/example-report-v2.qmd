@@ -1,0 +1,73 @@
+---
+title: "Analysis of the PlantGrowth Dataset"
+author: "Paul Schmidt"
+date: today
+format: docx
+---
+
+## Introduction
+
+This report analyzes the `PlantGrowth` dataset, which contains results from an experiment comparing plant yields under three different conditions: a control group (`ctrl`) and two treatment groups (`trt1` and `trt2`). The goal is to determine whether there are statistically significant differences in dried plant weight between the groups.
+
+## Data Overview
+
+The dataset contains 30 observations across three groups with 10 plants each.
+
+```{r}
+#| echo: false
+data(PlantGrowth)
+
+group_summary <- aggregate(
+  weight ~ group,
+  data = PlantGrowth,
+  FUN = function(x) c(mean = mean(x), sd = sd(x), n = length(x))
+)
+
+summary_df <- data.frame(
+  Group = group_summary$group,
+  Mean = round(group_summary$weight[, "mean"], 2),
+  SD = round(group_summary$weight[, "sd"], 2),
+  n = group_summary$weight[, "n"]
+)
+
+knitr::kable(summary_df, caption = "Summary statistics by treatment group.")
+```
+
+## Visualization
+
+```{r}
+#| label: fig-boxplot
+#| fig-cap: "Distribution of dried plant weight by treatment group."
+#| echo: false
+
+library(ggplot2)
+
+ggplot(PlantGrowth, aes(x = group, y = weight)) +
+  geom_boxplot(width = 0.5, outlier.shape = NA) +
+  geom_jitter(width = 0.15, alpha = 0.6) +
+  labs(
+    x = "Treatment Group",
+    y = "Dried Weight [g]"
+  ) +
+  theme_minimal() +
+  theme(text = element_text(size = 14))
+```
+
+## Statistical Analysis
+
+We use a one-way ANOVA to test whether the group means differ significantly, followed by Tukey's HSD test for pairwise comparisons.
+
+```{r}
+#| echo: false
+model <- aov(weight ~ group, data = PlantGrowth)
+summary(model)
+```
+
+```{r}
+#| echo: false
+TukeyHSD(model)
+```
+
+## Conclusion
+
+The ANOVA indicates a marginally significant effect of treatment group on plant weight. Tukey's HSD test reveals that the difference between `trt2` and `trt1` is statistically significant, while neither treatment group differs significantly from the control.

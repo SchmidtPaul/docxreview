@@ -17,6 +17,10 @@
 #'   - `changed_text`: Character. The text that was inserted, deleted, or moved.
 #'   - `paragraph_context`: Character. Full text of the containing paragraph,
 #'     with the change marked up (~~deletion~~ or **insertion**).
+#'   - `page`: Integer. Page number based on `w:lastRenderedPageBreak` elements,
+#'     or `NA` if the document has no rendered page break info.
+#'   - `section`: Character. Text of the nearest preceding heading, or `NA` if
+#'     the document has no headings or the change precedes the first heading.
 #' @export
 #' @examples
 #' # Extract tracked changes from a reviewed document
@@ -48,7 +52,17 @@ extract_tracked_changes_impl <- function(parts) {
     return(empty_changes_tibble())
   }
 
-  result <- extract_change_nodes(change_nodes, ns = ns)
+  # Precompute page/section lookups (once per document)
+  all_p <- xml2::xml_find_all(body_xml, "//w:p", ns = ns)
+  p_paths <- xml2::xml_path(all_p)
+  page_break_indices <- precompute_page_break_indices(all_p, ns)
+  heading_style_ids <- build_heading_style_ids(parts$styles_xml, ns)
+  heading_indices <- precompute_heading_indices(all_p, heading_style_ids, ns)
+
+  result <- extract_change_nodes(change_nodes, ns = ns,
+                                  all_p = all_p, p_paths = p_paths,
+                                  page_break_indices = page_break_indices,
+                                  heading_indices = heading_indices)
 
   # Filter out field instructions and whitespace-only changes
   result <- result[nchar(trimws(result$changed_text)) > 0, , drop = FALSE]
@@ -62,15 +76,21 @@ extract_tracked_changes_impl <- function(parts) {
 
   result$change_id <- seq_len(nrow(result))
   result[, c("change_id", "type", "author", "date",
-             "changed_text", "paragraph_context")]
+             "changed_text", "paragraph_context", "page", "section")]
 }
 
 #' Extract data from a set of change nodes (w:ins or w:del)
 #' @param nodes xml_nodeset of w:ins and/or w:del elements.
 #' @param ns Named character vector of XML namespaces.
+#' @param all_p xml_nodeset of all w:p (precomputed).
+#' @param p_paths Character vector of xml_path for all_p.
+#' @param page_break_indices Integer vector of page break paragraph indices.
+#' @param heading_indices Named integer vector of heading paragraph indices.
 #' @return A tibble with change data.
 #' @noRd
-extract_change_nodes <- function(nodes, ns) {
+extract_change_nodes <- function(nodes, ns, all_p = NULL, p_paths = NULL,
+                                  page_break_indices = NULL,
+                                  heading_indices = NULL) {
   if (length(nodes) == 0) return(empty_changes_tibble())
 
   # Determine type from node name
@@ -96,13 +116,36 @@ extract_change_nodes <- function(nodes, ns) {
     format_context_with_markup(ctx, changed_texts[i], types[i])
   }, character(1))
 
+  # Page and section per change node
+  pages <- vapply(seq_along(nodes), function(i) {
+    parent_p <- xml2::xml_find_first(nodes[[i]], "ancestor::w:p", ns = ns)
+    if (inherits(parent_p, "xml_missing") || is.null(p_paths)) {
+      return(NA_integer_)
+    }
+    p_idx <- match(xml2::xml_path(parent_p), p_paths)
+    if (is.na(p_idx)) return(NA_integer_)
+    get_page_number(parent_p, all_p, p_idx, page_break_indices)
+  }, integer(1))
+
+  sections <- vapply(seq_along(nodes), function(i) {
+    parent_p <- xml2::xml_find_first(nodes[[i]], "ancestor::w:p", ns = ns)
+    if (inherits(parent_p, "xml_missing") || is.null(p_paths)) {
+      return(NA_character_)
+    }
+    p_idx <- match(xml2::xml_path(parent_p), p_paths)
+    if (is.na(p_idx)) return(NA_character_)
+    get_nearest_heading(p_idx, all_p, heading_indices)
+  }, character(1))
+
   tibble::tibble(
     change_id = NA_integer_,
     type = types,
     author = authors,
     date = dates,
     changed_text = changed_texts,
-    paragraph_context = paragraph_contexts
+    paragraph_context = paragraph_contexts,
+    page = pages,
+    section = sections
   )
 }
 
@@ -120,9 +163,9 @@ collapse_consecutive_duplicates <- function(df) {
 
   keep <- rep(TRUE, nrow(df))
   for (i in seq(2, nrow(df))) {
-    if (df$type[i] == df$type[i - 1] &&
+    if (identical(df$type[i], df$type[i - 1]) &&
         identical(df$author[i], df$author[i - 1]) &&
-        df$changed_text[i] == df$changed_text[i - 1] &&
+        identical(df$changed_text[i], df$changed_text[i - 1]) &&
         identical(df$paragraph_context[i], df$paragraph_context[i - 1])) {
       keep[i] <- FALSE
     }
@@ -139,6 +182,8 @@ empty_changes_tibble <- function() {
     author = character(),
     date = character(),
     changed_text = character(),
-    paragraph_context = character()
+    paragraph_context = character(),
+    page = integer(),
+    section = character()
   )
 }

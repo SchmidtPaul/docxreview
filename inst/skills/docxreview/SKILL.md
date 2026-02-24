@@ -63,6 +63,41 @@ docxreview::extract_tracked_changes("path/to/reviewed.docx")
 - **Field instruction filtering:** Cross-references, TOC entries, and page numbers are automatically excluded from tracked changes
 - **Duplicate collapsing:** Consecutive duplicate changes (split runs) are collapsed
 
+## Multi-Round Review Workflow
+
+When the workflow involves multiple review cycles, use `compare_versions()` to
+show the reviewer exactly what changed between versions:
+
+```r
+# After revising example-report.qmd → re-render to example-report-v2.docx
+docxreview::compare_versions(
+  old_docx    = "example-report.docx",
+  new_docx    = "example-report-v2.docx",
+  output_file = "example-report-diff.docx"
+)
+```
+
+Send `example-report-diff.docx` back to the reviewer. They see all changes as
+tracked changes and can accept, reject, or add new feedback.
+
+### Distinguishing own changes from new reviewer feedback
+
+Every tracked change carries an author. When the reviewer returns the diff
+document, filter by author to separate pending own changes from new input:
+
+```r
+changes <- docxreview::extract_tracked_changes("example-report-diff-reviewed.docx")
+
+# New reviewer feedback only
+reviewer_changes <- dplyr::filter(changes, author != "Paul Schmidt - BioMath GmbH")
+
+# Own v1→v2 changes still pending (reviewer neither accepted nor rejected them)
+own_pending <- dplyr::filter(changes, author == "Paul Schmidt - BioMath GmbH")
+```
+
+Own pending changes can be ignored — they are already implemented in the `.qmd`.
+Only reviewer changes require action.
+
 ## Important Notes
 
 - **Always use docxreview** instead of manually parsing DOCX XML for review feedback

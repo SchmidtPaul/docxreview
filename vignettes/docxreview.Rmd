@@ -153,38 +153,25 @@ dplyr::filter(comments, grepl("code", comment_text))
 dplyr::filter(changes, type == "insertion")
 ```
 
-## Incorporating Feedback with Claude Code
+## Incorporating Feedback with an LLM
 
-docxreview is designed to work seamlessly with
-[Claude Code](https://docs.anthropic.com/en/docs/claude-code) and the
-[btw](https://github.com/posit-dev/btw) MCP server. Instead of manually
-working through each comment and tracked change, you can let Claude Code
-extract the feedback and revise your source document in one step.
-
-### Setup
-
-1. Install [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and
-   configure [btw](https://github.com/posit-dev/btw) as an MCP server so that
-   Claude Code has access to your R session.
-2. Make the docxreview skill available by adding the skill directory to your
-   project. Find the installed path with:
+The structured Markdown output from `extract_review()` can be passed to any LLM
+(ChatGPT, Claude, Gemini, etc.) to automate source revisions. Save the feedback
+to a file and include it in your prompt:
 
 ```r
-system.file("skills", "docxreview", package = "docxreview")
+extract_review("example-report-reviewed.docx", output_file = "feedback.md")
 ```
 
-### Workflow
+Then ask the LLM:
 
-With btw running, open Claude Code and enter a prompt like:
-
-> "Extract the review feedback from `example-report-reviewed.docx` and revise
+> "Here is the review feedback from `feedback.md`. Please revise
 > `example-report.qmd` to address all comments and tracked changes."
 
-Claude Code will then:
+The LLM will typically:
 
-1. Use `extract_review()` to read all comments and tracked changes from the
-   reviewed DOCX.
-2. Read your Quarto source and understand its structure.
+1. Read the extracted comments and tracked changes.
+2. Understand your source document's structure.
 3. Apply the necessary edits — for our example:
    - Add `echo: false` to the YAML header (hiding R code).
    - Add `theme(text = element_text(size = 14))` to the ggplot (larger font).
@@ -195,12 +182,42 @@ Claude Code will then:
 The revised QMD can then be re-rendered to produce a clean DOCX that addresses
 all reviewer feedback.
 
+### Claude Code + btw
+
+[Claude Code](https://docs.anthropic.com/en/docs/claude-code) with the
+[btw](https://github.com/posit-dev/btw) MCP server can run the entire workflow
+in a single step — extracting feedback, reading the source, and applying edits.
+docxreview ships with a Claude Code skill file. Register it via:
+
+```r
+system.file("skills", "docxreview", package = "docxreview")
+```
+
+Then open Claude Code and enter a prompt like:
+
+> "Extract the review feedback from `example-report-reviewed.docx` and revise
+> `example-report.qmd` to address all comments and tracked changes."
+
+## Comparing Versions
+
+After revising your source and re-rendering to `.docx`, you can produce a
+comparison document with tracked changes so the reviewer sees exactly what
+changed between versions:
+
+```r
+compare_versions("report_v1.docx", "report_v2.docx")
+```
+
+This creates a new `.docx` file with Word's built-in tracked changes showing
+all differences. Note that this function requires Microsoft Word, Python, and
+the `pywin32` package (Windows only).
+
 ## Try It Yourself
 
 All example files are available in the
 [vignettes/ directory](https://github.com/SchmidtPaul/docxreview/tree/master/vignettes)
 of the GitHub repository. Download the QMD and the reviewed DOCX, then try the
-Claude Code workflow described above — or start with the basic extraction:
+LLM workflow described above — or start with the basic extraction:
 
 ```r
 library(docxreview)

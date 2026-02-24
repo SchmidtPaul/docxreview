@@ -20,6 +20,10 @@ or \code{"move_to"}.
 \item \code{changed_text}: Character. The text that was inserted, deleted, or moved.
 \item \code{paragraph_context}: Character. Full text of the containing paragraph,
 with the change marked up (~~deletion~~ or \strong{insertion}).
+\item \code{page}: Integer. Page number based on \code{w:lastRenderedPageBreak} elements,
+or \code{NA} if the document has no rendered page break info.
+\item \code{section}: Character. Text of the nearest preceding heading, or \code{NA} if
+the document has no headings or the change precedes the first heading.
 }
 }
 \description{

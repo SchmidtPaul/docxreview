@@ -33,6 +33,9 @@ extract_review <- function(docx_path, output_file = NULL,
   comments <- extract_comments_impl(parts)
   changes <- extract_tracked_changes_impl(parts)
 
+  # Warn about items where context could not be located
+  warn_na_context(comments, changes)
+
   if (group_by_author) {
     md <- format_review_markdown_by_author(comments, changes,
                                            basename(docx_path))
@@ -56,12 +59,29 @@ extract_review <- function(docx_path, output_file = NULL,
 
 # -- Per-item formatters (shared by both layout modes) -------------------------
 
+#' Format location string from page and section
+#' @noRd
+format_location <- function(page, section) {
+  has_page <- !is.null(page) && !is.na(page)
+  has_section <- !is.null(section) && !is.na(section) && nchar(section) > 0
+  if (has_page && has_section) {
+    paste0(" \u2014 p.\u00A0", page, ", \u00A7\u00A0", section)
+  } else if (has_page) {
+    paste0(" \u2014 p.\u00A0", page)
+  } else if (has_section) {
+    paste0(" \u2014 \u00A7\u00A0", section)
+  } else {
+    ""
+  }
+}
+
 #' Format a single comment as Markdown lines
 #' @noRd
 format_comment_md <- function(row, index) {
   date_fmt <- format_date(row$date)
+  loc <- format_location(row$page, row$section)
   c(
-    paste0("### ", index, ". ", row$author, " (", date_fmt, ")"),
+    paste0("### ", index, ". ", row$author, " (", date_fmt, ")", loc),
     paste0('> **Commented text:** "', row$commented_text, '"'),
     paste0('> **Paragraph:** "', row$paragraph_context, '"'),
     "",
@@ -76,6 +96,7 @@ format_comment_md <- function(row, index) {
 #' @noRd
 format_change_md <- function(row, index) {
   date_fmt <- format_date(row$date)
+  loc <- format_location(row$page, row$section)
   type_labels <- c(
     deletion = "Deletion", insertion = "Insertion",
     move_from = "Moved from here", move_to = "Moved to here"
@@ -89,7 +110,7 @@ format_change_md <- function(row, index) {
 
   c(
     paste0("### ", index, ". [", type_label, "] ", row$author,
-           " (", date_fmt, ")"),
+           " (", date_fmt, ")", loc),
     paste0('> **', text_label, ':** "', row$changed_text, '"'),
     paste0('> **Paragraph:** "', row$paragraph_context, '"'),
     "",
@@ -168,8 +189,9 @@ format_review_markdown_by_author <- function(comments, changes, filename) {
             !is.na(row$parent_comment_id)) next
         counter <- counter + 1L
         date_fmt <- format_date(row$date)
+        loc <- format_location(row$page, row$section)
         lines <- c(lines,
-          paste0("#### ", counter, ". (", date_fmt, ")"),
+          paste0("#### ", counter, ". (", date_fmt, ")", loc),
           paste0('> **Commented text:** "', row$commented_text, '"'),
           paste0('> **Paragraph:** "', row$paragraph_context, '"'),
           "",
@@ -224,11 +246,12 @@ format_review_markdown_by_author <- function(comments, changes, filename) {
       for (i in seq_len(nrow(auth_changes))) {
         row <- auth_changes[i, ]
         date_fmt <- format_date(row$date)
+        loc <- format_location(row$page, row$section)
         type_label <- type_labels[row$type]
         text_label <- text_labels[row$type]
 
         lines <- c(lines,
-          paste0("#### ", i, ". [", type_label, "] (", date_fmt, ")"),
+          paste0("#### ", i, ". [", type_label, "] (", date_fmt, ")", loc),
           paste0('> **', text_label, ':** "', row$changed_text, '"'),
           paste0('> **Paragraph:** "', row$paragraph_context, '"'),
           "",
@@ -274,8 +297,9 @@ format_comments_with_threading <- function(comments) {
     counter <- counter + 1L
     row <- top_level[i, ]
     date_fmt <- format_date(row$date)
+    loc <- format_location(row$page, row$section)
     lines <- c(lines,
-      paste0("### ", counter, ". ", row$author, " (", date_fmt, ")"),
+      paste0("### ", counter, ". ", row$author, " (", date_fmt, ")", loc),
       paste0('> **Commented text:** "', row$commented_text, '"'),
       paste0('> **Paragraph:** "', row$paragraph_context, '"'),
       "",
@@ -301,6 +325,33 @@ format_comments_with_threading <- function(comments) {
   }
 
   lines
+}
+
+#' Warn if any extracted items have NA paragraph context
+#' @noRd
+warn_na_context <- function(comments, changes) {
+  na_comments <- if (nrow(comments) > 0) {
+    sum(is.na(comments$paragraph_context))
+  } else {
+    0L
+  }
+  na_changes <- if (nrow(changes) > 0) {
+    sum(is.na(changes$paragraph_context))
+  } else {
+    0L
+  }
+
+  if (na_comments > 0L) {
+    cli::cli_warn(
+      "{na_comments} of {nrow(comments)} comment{?s} could not be located in the document body."
+    )
+  }
+  if (na_changes > 0L) {
+    cli::cli_warn(
+      "{na_changes} of {nrow(changes)} tracked change{?s} could not be located in the document body."
+    )
+  }
+  invisible(NULL)
 }
 
 #' Format ISO 8601 date to a shorter display format

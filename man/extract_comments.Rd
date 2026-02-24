@@ -22,6 +22,10 @@ or an empty string if no text range was selected.
 the commented range.
 \item \code{parent_comment_id}: Character. The ID of the parent comment for replies,
 or \code{NA} for top-level comments.
+\item \code{page}: Integer. Page number based on \code{w:lastRenderedPageBreak} elements,
+or \code{NA} if the document has no rendered page break info.
+\item \code{section}: Character. Text of the nearest preceding heading, or \code{NA} if
+the document has no headings or the comment precedes the first heading.
 }
 }
 \description{

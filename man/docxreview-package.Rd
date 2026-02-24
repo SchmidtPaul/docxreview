@@ -6,7 +6,7 @@
 \alias{docxreview-package}
 \title{docxreview: Extract Review Feedback from Word Documents}
 \description{
-Extract comments and tracked changes from reviewed Word documents (.docx) and return them as structured data or formatted Markdown. Designed for workflows where documents are rendered from Quarto or R Markdown, reviewed in Microsoft Word, and feedback needs to be processed programmatically — particularly with Claude Code and btw for AI-assisted review processing.
+Extract comments and tracked changes from reviewed Word documents (.docx) and return them as structured data or formatted Markdown. Designed for workflows where documents are rendered from Quarto or R Markdown, reviewed in Microsoft Word, and feedback needs to be processed programmatically — for example by passing the structured output to an LLM for automated revision.
 }
 \seealso{
 Useful links:
