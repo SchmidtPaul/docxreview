@@ -3,3 +3,7 @@
 CLAUDE.md
 inst/doc
 docs/
+~$*.docx
+feedback.md
+feedback-reviewers.md
+tests/testthat/testthat-problems.rds

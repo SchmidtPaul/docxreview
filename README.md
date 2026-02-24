@@ -29,8 +29,9 @@ library(docxreview)
 # Get a formatted Markdown summary of all review feedback
 extract_review("report_reviewed.docx")
 
-# Save to file
-extract_review("report_reviewed.docx", output_file = "feedback.md")
+# Save to file (anonymized — replaces reviewer names with "Reviewer 1" etc.)
+extract_review("report_reviewed.docx", output_file = "feedback.md",
+               anonymize = TRUE)
 
 # Programmatic access as tibbles
 comments <- extract_comments("report_reviewed.docx")
@@ -99,7 +100,7 @@ system.file("skills", "docxreview", package = "docxreview")
 
 | Function | Returns | Description |
 |---|---|---|
-| `extract_review()` | Markdown (character) | Full formatted summary of all comments and tracked changes |
+| `extract_review()` | Markdown (character) | Full formatted summary of all comments and tracked changes. Supports `group_by_author` and `anonymize` options. |
 | `extract_comments()` | tibble | Comments with author, date, comment text, commented text, and paragraph context |
 | `extract_tracked_changes()` | tibble | Insertions and deletions with author, date, changed text, and paragraph context |
 | `compare_versions()` | file path | Produces a diff `.docx` with tracked changes between two document versions (requires Word + Python) |
