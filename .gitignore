@@ -7,3 +7,4 @@ docs/
 feedback.md
 feedback-reviewers.md
 tests/testthat/testthat-problems.rds
+tmp/
