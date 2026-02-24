@@ -253,3 +253,64 @@ precompute_page_break_indices <- function(all_p, ns) {
 
   if (length(indices) == 0) NULL else indices
 }
+
+#' Replace author names with neutral aliases
+#'
+#' @param comments Tibble from extract_comments_impl().
+#' @param changes Tibble from extract_tracked_changes_impl().
+#' @return list(comments, changes, mapping) — mapping is a named character
+#'   vector: names = original author, values = alias ("Reviewer 1" etc.)
+#' @noRd
+anonymize_authors <- function(comments, changes) {
+  all_authors <- unique(c(comments$author, changes$author))
+  all_authors <- all_authors[!is.na(all_authors)]
+
+  # names = original name, values = "Reviewer N"
+  mapping <- stats::setNames(
+    paste("Reviewer", seq_along(all_authors)),
+    all_authors
+  )
+
+  # Build text-replacement pairs (full name + sub-names from " - "/" – " splits)
+  # Sorted longest-first so longer strings are replaced before shorter substrings
+  repl_patterns <- character(0)
+  for (orig in names(mapping)) {
+    variants <- name_variants(orig)
+    repl_patterns[variants] <- mapping[[orig]]
+  }
+  repl_patterns <- repl_patterns[order(nchar(names(repl_patterns)), decreasing = TRUE)]
+
+  replace_author <- function(x) {
+    ifelse(is.na(x), NA_character_, unname(mapping[x]))
+  }
+  replace_in_text <- function(x) {
+    if (is.na(x)) return(x)
+    for (pat in names(repl_patterns)) x <- gsub(pat, repl_patterns[[pat]], x, fixed = TRUE)
+    x
+  }
+
+  if (nrow(comments) > 0) {
+    comments$author         <- replace_author(comments$author)
+    comments$comment_text   <- vapply(comments$comment_text,   replace_in_text, character(1))
+    comments$commented_text <- vapply(comments$commented_text, replace_in_text, character(1))
+  }
+  if (nrow(changes) > 0) {
+    changes$author       <- replace_author(changes$author)
+    changes$changed_text <- vapply(changes$changed_text, replace_in_text, character(1))
+  }
+
+  list(comments = comments, changes = changes, mapping = mapping)
+}
+
+#' Build name variants for text-level anonymization
+#'
+#' Splits a display name on " - " or " – " and keeps any part with >= 2 words
+#' (to avoid false positives from single-word fragments).
+#' @noRd
+name_variants <- function(name) {
+  parts <- trimws(strsplit(name, " [-\u2013] ")[[1]])
+  variants <- unique(c(name, parts[vapply(parts, function(p) {
+    length(strsplit(p, "\\s+")[[1]]) >= 2
+  }, logical(1))]))
+  variants[nchar(variants) > 0]
+}

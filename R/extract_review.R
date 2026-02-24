@@ -10,6 +10,11 @@
 #'   the console.
 #' @param group_by_author If `TRUE`, the Markdown output is grouped by author
 #'   with each author as a top-level section. Defaults to `FALSE`.
+#' @param anonymize If `TRUE`, all reviewer names are replaced with neutral
+#'   aliases ("Reviewer 1", "Reviewer 2", ...) in the Markdown output. A
+#'   mapping table (alias → real name) is written to a sidecar
+#'   `*-reviewers.md` file when `output_file` is set, or printed to the
+#'   console otherwise. Defaults to `FALSE`.
 #' @return Invisibly returns the Markdown string. If `output_file` is specified,
 #'   the Markdown is also written to that file.
 #' @export
@@ -21,11 +26,12 @@
 #' # Group feedback by author
 #' extract_review("report_reviewed.docx", group_by_author = TRUE)
 #'
-#' # Save to file
-#' extract_review("report_reviewed.docx", output_file = "feedback.md")
+#' # Save to file with anonymized reviewer names
+#' extract_review("report_reviewed.docx", output_file = "feedback.md",
+#'                anonymize = TRUE)
 #' }
 extract_review <- function(docx_path, output_file = NULL,
-                           group_by_author = FALSE) {
+                           group_by_author = FALSE, anonymize = FALSE) {
   check_docx_path(docx_path)
 
   # Parse DOCX once, pass pre-parsed XML to both extractors
@@ -35,6 +41,14 @@ extract_review <- function(docx_path, output_file = NULL,
 
   # Warn about items where context could not be located
   warn_na_context(comments, changes)
+
+  mapping <- NULL
+  if (anonymize) {
+    anon     <- anonymize_authors(comments, changes)
+    comments <- anon$comments
+    changes  <- anon$changes
+    mapping  <- anon$mapping
+  }
 
   if (group_by_author) {
     md <- format_review_markdown_by_author(comments, changes,
@@ -52,6 +66,22 @@ extract_review <- function(docx_path, output_file = NULL,
     cli::cli_inform("Review feedback written to {.file {output_file}}.")
   } else {
     cat(md, sep = "\n")
+  }
+
+  if (anonymize && !is.null(mapping) && length(mapping) > 0) {
+    # Alias in column 1, real name in column 2
+    map_lines <- c(
+      "# Reviewer Mapping", "",
+      "| Alias | Name |", "|-------|------|",
+      paste0("| ", unname(mapping), " | ", names(mapping), " |")
+    )
+    if (!is.null(output_file)) {
+      map_file <- paste0(tools::file_path_sans_ext(output_file), "-reviewers.md")
+      writeLines(map_lines, map_file)
+      cli::cli_inform("Reviewer mapping written to {.file {map_file}}.")
+    } else {
+      cat(paste(map_lines, collapse = "\n"), "\n")
+    }
   }
 
   invisible(md)

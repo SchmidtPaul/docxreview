@@ -4,7 +4,12 @@
 \alias{extract_review}
 \title{Extract all review feedback from a Word document}
 \usage{
-extract_review(docx_path, output_file = NULL, group_by_author = FALSE)
+extract_review(
+  docx_path,
+  output_file = NULL,
+  group_by_author = FALSE,
+  anonymize = FALSE
+)
 }
 \arguments{
 \item{docx_path}{Path to a .docx file.}
@@ -15,6 +20,12 @@ the console.}
 
 \item{group_by_author}{If \code{TRUE}, the Markdown output is grouped by author
 with each author as a top-level section. Defaults to \code{FALSE}.}
+
+\item{anonymize}{If \code{TRUE}, all reviewer names are replaced with neutral
+aliases ("Reviewer 1", "Reviewer 2", ...) in the Markdown output. A
+mapping table (alias → real name) is written to a sidecar
+\verb{*-reviewers.md} file when \code{output_file} is set, or printed to the
+console otherwise. Defaults to \code{FALSE}.}
 }
 \value{
 Invisibly returns the Markdown string. If \code{output_file} is specified,
@@ -33,7 +44,8 @@ extract_review("report_reviewed.docx")
 # Group feedback by author
 extract_review("report_reviewed.docx", group_by_author = TRUE)
 
-# Save to file
-extract_review("report_reviewed.docx", output_file = "feedback.md")
+# Save to file with anonymized reviewer names
+extract_review("report_reviewed.docx", output_file = "feedback.md",
+               anonymize = TRUE)
 }
 }
