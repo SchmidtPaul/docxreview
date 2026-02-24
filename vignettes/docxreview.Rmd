@@ -106,10 +106,28 @@ This prints a structured Markdown summary to the console:
 ---
 ```
 
-To save the output to a file instead:
+## Output Options
+
+Save to a file instead of printing to the console:
 
 ```r
 extract_review("example-report-reviewed.docx", output_file = "feedback.md")
+```
+
+**Anonymize reviewer names** with `anonymize = TRUE`. This replaces all author
+names with neutral aliases ("Reviewer 1", "Reviewer 2", ...) in the Markdown
+output — including any `@mentions` within comment text. A sidecar
+`feedback-reviewers.md` mapping file is written alongside the output file:
+
+```r
+extract_review("example-report-reviewed.docx", output_file = "feedback.md",
+               anonymize = TRUE)
+```
+
+**Group feedback by reviewer** with `group_by_author = TRUE`:
+
+```r
+extract_review("example-report-reviewed.docx", group_by_author = TRUE)
 ```
 
 ## Programmatic Access
@@ -123,11 +141,12 @@ comments
 ```
 
 ```
-# A tibble: 2 x 6
-  comment_id author                     date       comment_text   commented_text paragraph_context
-  <chr>      <chr>                      <chr>      <chr>          <chr>          <chr>
-1 4          Paul Schmidt - BioMath GmbH 2026-02-14 Hide the R ... "data"        "data(PlantGro..."
-2 7          Paul Schmidt - BioMath GmbH 2026-02-14 Increase th... ""            ""
+# A tibble: 2 x 9
+  comment_id author                      date       comment_text    commented_text paragraph_context
+  <chr>      <chr>                       <chr>      <chr>           <chr>         <chr>
+1 4          Paul Schmidt - BioMath GmbH 2026-02-14 Hide the R ...  "data"        "data(PlantGro..."
+2 7          Paul Schmidt - BioMath GmbH 2026-02-14 Increase th...  ""            ""
+# ... with 3 more variables: parent_comment_id <chr>, page <int>, section <chr>
 ```
 
 ```r
@@ -136,11 +155,12 @@ changes
 ```
 
 ```
-# A tibble: 2 x 6
+# A tibble: 2 x 8
   change_id type      author                      date       changed_text paragraph_context
       <int> <chr>     <chr>                       <chr>      <chr>        <chr>
 1         1 insertion Paul Schmidt - BioMath GmbH 2026-02-14 y            This report anal...
 2         2 insertion Paul Schmidt - BioMath GmbH 2026-02-14 e            This r**e**port ...
+# ... with 2 more variables: page <int>, section <chr>
 ```
 
 You can filter these tibbles with standard dplyr operations:
