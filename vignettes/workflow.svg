@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 405" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+  <defs>
+    <style>
+      .doc-qmd { fill: #e8f4f8; stroke: #4a9aba; stroke-width: 1.5; }
+      .doc-docx { fill: #e8eef8; stroke: #4a6aba; stroke-width: 1.5; }
+      .doc-reviewed { fill: #fef3e0; stroke: #d4920a; stroke-width: 1.5; }
+      .label { font-size: 15px; font-weight: 600; text-anchor: middle; }
+      .sublabel { font-size: 11px; fill: #777; text-anchor: middle; }
+      .person-label { font-size: 14px; font-weight: 600; fill: #555; text-anchor: middle; }
+      .person-desc { font-size: 10px; fill: #999; text-anchor: middle; }
+      .arrow-label { font-size: 11px; fill: #666; text-anchor: middle; font-style: italic; }
+      .arrow { fill: none; stroke: #888; stroke-width: 1.8; marker-end: url(#ah); }
+      .arrow-highlight { fill: none; stroke: #c0392b; stroke-width: 2.6; marker-end: url(#ah-hl); }
+      .arrow-label-highlight { font-size: 11px; fill: #c0392b; text-anchor: middle; font-style: italic; font-weight: 600; }
+    </style>
+    <marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#888"/>
+    </marker>
+    <marker id="ah-hl" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#c0392b"/>
+    </marker>
+  </defs>
+
+  <!-- ===== ZONE DIVIDER (subtle) ===== -->
+  <line x1="350" y1="30" x2="350" y2="380" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="6,4"/>
+
+  <!-- ===== LEFT ZONE: AUTHOR ===== -->
+
+  <!-- Author person icon -->
+  <circle cx="140" cy="42" r="8" fill="#666"/>
+  <path d="M 122 62 Q 122 52 140 52 Q 158 52 158 62 L 158 66 L 122 66 Z" fill="#666"/>
+  <text x="140" y="84" class="person-label">Author</text>
+  <text x="140" y="97" class="person-desc">familiar with Quarto / R</text>
+
+  <!-- QMD v1.0 -->
+  <rect x="90" y="115" width="100" height="55" class="doc-qmd" rx="4"/>
+  <text x="140" y="142" class="label" fill="#4a9aba">.qmd</text>
+  <text x="140" y="160" class="sublabel">v1.0</text>
+
+  <!-- DOCX v1.0 reviewed (received back) -->
+  <rect x="90" y="235" width="100" height="55" class="doc-reviewed" rx="4"/>
+  <text x="140" y="262" class="label" fill="#d4920a">.docx</text>
+  <text x="140" y="280" class="sublabel">v1.0 reviewed</text>
+
+  <!-- QMD v2.0 -->
+  <rect x="90" y="335" width="100" height="55" class="doc-qmd" rx="4"/>
+  <text x="140" y="362" class="label" fill="#4a9aba">.qmd</text>
+  <text x="140" y="380" class="sublabel">v2.0</text>
+
+  <!-- Arrow: reviewed DOCX → QMD v2.0 (highlighted = bottleneck) -->
+  <path d="M 140 290 L 140 333" class="arrow-highlight"/>
+  <text x="205" y="315" class="arrow-label-highlight">extract info &amp; revise</text>
+
+  <!-- ===== RIGHT ZONE: REVIEWER ===== -->
+
+  <!-- Reviewer person icon -->
+  <circle cx="560" cy="42" r="8" fill="#666"/>
+  <path d="M 542 62 Q 542 52 560 52 Q 578 52 578 62 L 578 66 L 542 66 Z" fill="#666"/>
+  <text x="560" y="84" class="person-label">Reviewer</text>
+  <text x="560" y="97" class="person-desc">not familiar with Quarto / R / Git</text>
+
+  <!-- DOCX v1.0 -->
+  <rect x="510" y="115" width="100" height="55" class="doc-docx" rx="4"/>
+  <text x="560" y="142" class="label" fill="#4a6aba">.docx</text>
+  <text x="560" y="160" class="sublabel">v1.0</text>
+
+  <!-- DOCX v1.0 reviewed -->
+  <rect x="510" y="235" width="100" height="55" class="doc-reviewed" rx="4"/>
+  <text x="560" y="262" class="label" fill="#d4920a">.docx</text>
+  <text x="560" y="280" class="sublabel">v1.0 reviewed</text>
+
+  <!-- ===== ARROWS (all gray) ===== -->
+
+  <!-- Arrow: QMD v1.0 → DOCX v1.0 (render + send) -->
+  <path d="M 190 142 L 508 142" class="arrow"/>
+  <text x="350" y="134" class="arrow-label">render &amp; send</text>
+
+  <!-- Arrow: DOCX v1.0 → DOCX v1.0 reviewed (review) -->
+  <path d="M 560 170 L 560 233" class="arrow"/>
+  <text x="597" y="198" class="arrow-label">review</text>
+  <text x="597" y="211" font-size="9" fill="#999" text-anchor="middle">(comments &amp;</text>
+  <text x="597" y="221" font-size="9" fill="#999" text-anchor="middle">tracked changes)</text>
+
+  <!-- Arrow: DOCX v1.0 reviewed (right) → DOCX v1.0 reviewed (left) (return) -->
+  <path d="M 508 262 L 192 262" class="arrow"/>
+  <text x="350" y="254" class="arrow-label">return</text>
+</svg>
